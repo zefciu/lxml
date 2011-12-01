@@ -169,7 +169,7 @@ cdef extern from "libxml/tree.h":
         xmlDoc* doc
         xmlAttribute* nexth
         xmlAttributeType atype
-        xmlAttributeDefault def
+        xmlAttributeDefault _def "def"
         char* defaultValue
         xmlEnumeration* tree
         char* prefix
