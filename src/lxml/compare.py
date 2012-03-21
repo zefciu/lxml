@@ -18,6 +18,11 @@ def strip(v):
     else:
         return v.strip()
 
+_html_parser = etree.HTMLParser(recover=False, remove_blank_text=True)
+
+def html_fromstring(html):
+    return etree.fromstring(html, _html_parser)
+
 class Comparator(object):
     """Object encapsulating etree comparison logic.
     Usage:
@@ -263,3 +268,13 @@ class Comparator(object):
             return self.format_text(x, strip)
         text = '%s (- %s)' % (x, y)
         return self.format_text(text, strip)
+    
+def assertXMLEqual(x, y, html = False, **kwargs):
+    comparator = Comparator(html=html, **kwargs)
+    parser = html_fromstring if html else etree.XML
+    if isinstance (x, _basestring):
+        x = parser(x)
+    if isinstance (y, _basestring):
+        y = parser(y)
+    if not comparator.compare(x, y):
+        raise AssertionError('\n'.join(comparator.get_diff(x, y)[2]))

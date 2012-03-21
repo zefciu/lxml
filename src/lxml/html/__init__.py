@@ -33,6 +33,7 @@
 
 import threading
 import re
+import functools as ft
 try:
     from urlparse import urljoin
 except ImportError:
@@ -40,6 +41,7 @@ except ImportError:
     from urllib.parse import urljoin
 import copy
 from lxml import etree
+from lxml.compare import assertXMLEqual
 from lxml.html import defs
 from lxml import cssselect
 from lxml.html._setmixin import SetMixin
@@ -1641,3 +1643,5 @@ def Element(*args, **kw):
 
 html_parser = HTMLParser()
 xhtml_parser = XHTMLParser()
+
+assertHTMLEqual = ft.partial(assertXMLEqual, html=True)
