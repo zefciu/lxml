@@ -1,3 +1,13 @@
 *.pyc
 __pycache__
 build/
+*.so
+dist/
+build/
+log
+src/lxml.egg-info/
+src/lxml/include/lxml-version.h
+src/lxml/lxml.etree.c
+src/lxml/lxml.etree.h
+src/lxml/lxml.etree_api.h
+src/lxml/lxml.objectify.c
