@@ -1,12 +1,24 @@
 from libc cimport stdio
+from libc.string cimport const_char, const_uchar
 
 cdef extern from "lxml-version.h":
     # deprecated declaration, use etreepublic.pxd instead
     cdef char* LXML_VERSION_STRING
 
 cdef extern from "libxml/xmlversion.h":
-    cdef char* xmlParserVersion
+    cdef const_char* xmlParserVersion
     cdef int LIBXML_VERSION
+
+cdef extern from "libxml/xmlstring.h":
+    ctypedef unsigned char xmlChar
+    ctypedef unsigned char const_xmlChar "const xmlChar"
+    cdef int xmlStrlen(const_xmlChar* str) nogil
+    cdef xmlChar* xmlStrdup(const_xmlChar* cur) nogil
+    cdef int xmlStrncmp(const_xmlChar* str1, const_xmlChar* str2, int length) nogil
+    cdef int xmlStrcmp(const_xmlChar* str1, const_xmlChar* str2) nogil
+    cdef const_xmlChar* xmlStrstr(const_xmlChar* str1, const_xmlChar* str2) nogil
+    cdef const_xmlChar* xmlStrchr(const_xmlChar* str1, xmlChar ch) nogil
+    cdef const_xmlChar* _xcstr "(const xmlChar*)PyBytes_AS_STRING" (object s)
 
 cdef extern from "libxml/encoding.h":
     ctypedef enum xmlCharEncoding:
@@ -40,25 +52,28 @@ cdef extern from "libxml/encoding.h":
     cdef xmlCharEncodingHandler* xmlGetCharEncodingHandler(
         xmlCharEncoding enc) nogil
     cdef int xmlCharEncCloseFunc(xmlCharEncodingHandler* handler) nogil
-    cdef xmlCharEncoding xmlDetectCharEncoding(char* text, int len) nogil
-    cdef char* xmlGetCharEncodingName(xmlCharEncoding enc) nogil
+    cdef xmlCharEncoding xmlDetectCharEncoding(const_xmlChar* text, int len) nogil
+    cdef const_char* xmlGetCharEncodingName(xmlCharEncoding enc) nogil
     cdef xmlCharEncoding xmlParseCharEncoding(char* name) nogil
+    ctypedef int (*xmlCharEncodingOutputFunc)(
+            unsigned char *out_buf, int *outlen, const_uchar *in_buf, int *inlen)
 
 cdef extern from "libxml/chvalid.h":
     cdef int xmlIsChar_ch(char c) nogil
 
 cdef extern from "libxml/hash.h":
     ctypedef struct xmlHashTable
-    ctypedef void xmlHashScanner(void* payload, void* data, char* name) # may require GIL!
+    ctypedef void (*xmlHashScanner)(void* payload, void* data, const_xmlChar* name) # may require GIL!
     void xmlHashScan(xmlHashTable* table, xmlHashScanner f, void* data) nogil
-    void* xmlHashLookup(xmlHashTable* table, char* name) nogil
+    void* xmlHashLookup(xmlHashTable* table, const_xmlChar* name) nogil
 
 cdef extern from *: # actually "libxml/dict.h"
     # libxml/dict.h appears to be broken to include in C
     ctypedef struct xmlDict
-    cdef char* xmlDictLookup(xmlDict* dict, char* name, int len) nogil
-    cdef char* xmlDictExists(xmlDict* dict, char* name, int len) nogil
-    cdef int xmlDictOwns(xmlDict* dict, char* name) nogil
+    cdef const_xmlChar* xmlDictLookup(xmlDict* dict, const_xmlChar* name, int len) nogil
+    cdef const_xmlChar* xmlDictExists(xmlDict* dict, const_xmlChar* name, int len) nogil
+    cdef int xmlDictOwns(xmlDict* dict, const_xmlChar* name) nogil
+    cdef size_t xmlDictSize(xmlDict* dict) nogil
 
 cdef extern from "libxml/tree.h":
     ctypedef struct xmlDoc
@@ -86,32 +101,145 @@ cdef extern from "libxml/tree.h":
         XML_NAMESPACE_DECL=         18
         XML_XINCLUDE_START=         19
         XML_XINCLUDE_END=           20
+
+    ctypedef enum xmlElementTypeVal:
+        XML_ELEMENT_TYPE_UNDEFINED= 0
+        XML_ELEMENT_TYPE_EMPTY=     1
+        XML_ELEMENT_TYPE_ANY=       2
+        XML_ELEMENT_TYPE_MIXED=     3
+        XML_ELEMENT_TYPE_ELEMENT=   4
+
+    ctypedef enum xmlElementContentType:
+        XML_ELEMENT_CONTENT_PCDATA=  1
+        XML_ELEMENT_CONTENT_ELEMENT= 2
+        XML_ELEMENT_CONTENT_SEQ=     3
+        XML_ELEMENT_CONTENT_OR=      4
+
+    ctypedef enum xmlElementContentOccur:
+        XML_ELEMENT_CONTENT_ONCE= 1
+        XML_ELEMENT_CONTENT_OPT=  2
+        XML_ELEMENT_CONTENT_MULT= 3
+        XML_ELEMENT_CONTENT_PLUS= 4
+
+    ctypedef enum xmlAttributeType:
+        XML_ATTRIBUTE_CDATA =      1
+        XML_ATTRIBUTE_ID=          2
+        XML_ATTRIBUTE_IDREF=       3
+        XML_ATTRIBUTE_IDREFS=      4
+        XML_ATTRIBUTE_ENTITY=      5
+        XML_ATTRIBUTE_ENTITIES=    6
+        XML_ATTRIBUTE_NMTOKEN=     7
+        XML_ATTRIBUTE_NMTOKENS=    8
+        XML_ATTRIBUTE_ENUMERATION= 9
+        XML_ATTRIBUTE_NOTATION=    10
     
+    ctypedef enum xmlAttributeDefault:
+        XML_ATTRIBUTE_NONE=     1
+        XML_ATTRIBUTE_REQUIRED= 2
+        XML_ATTRIBUTE_IMPLIED=  3
+        XML_ATTRIBUTE_FIXED=    4
+
+    ctypedef enum xmlEntityType:
+        XML_INTERNAL_GENERAL_ENTITY=          1
+        XML_EXTERNAL_GENERAL_PARSED_ENTITY=   2
+        XML_EXTERNAL_GENERAL_UNPARSED_ENTITY= 3
+        XML_INTERNAL_PARAMETER_ENTITY=        4
+        XML_EXTERNAL_PARAMETER_ENTITY=        5
+        XML_INTERNAL_PREDEFINED_ENTITY=       6
+
     ctypedef struct xmlNs:
-        char* href
-        char* prefix
+        const_xmlChar* href
+        const_xmlChar* prefix
         xmlNs* next
 
     ctypedef struct xmlNode:
         void* _private
         xmlElementType   type
-        char* name
+        const_xmlChar* name
         xmlNode* children
         xmlNode* last
         xmlNode* parent
         xmlNode* next
         xmlNode* prev
         xmlDoc* doc
-        char* content
+        xmlChar* content
         xmlAttr* properties
         xmlNs* ns
         xmlNs* nsDef
         unsigned short line
 
+    ctypedef struct xmlElementContent:
+        xmlElementContentType type
+        xmlElementContentOccur ocur
+        const_xmlChar *name
+        xmlElementContent *c1
+        xmlElementContent *c2
+        xmlElementContent *parent
+        const_xmlChar *prefix
+
+    ctypedef struct xmlEnumeration:
+        xmlEnumeration *next
+        const_xmlChar *name
+
+    ctypedef struct xmlAttribute:
+        void* _private
+        xmlElementType type
+        const_xmlChar* name
+        xmlNode* children
+        xmlNode* last
+        xmlDtd* parent
+        xmlNode* next
+        xmlNode* prev
+        xmlDoc* doc
+        xmlAttribute* nexth
+        xmlAttributeType atype
+        xmlAttributeDefault def_ "def"
+        const_xmlChar* defaultValue
+        xmlEnumeration* tree
+        const_xmlChar* prefix
+        const_xmlChar* elem
+
+    ctypedef struct xmlElement:
+        void* _private
+        xmlElementType   type
+        const_xmlChar* name
+        xmlNode* children
+        xmlNode* last
+        xmlNode* parent
+        xmlNode* next
+        xmlNode* prev
+        xmlDoc* doc
+        xmlElementTypeVal etype
+        xmlElementContent* content
+        xmlAttribute* attributes
+        const_xmlChar* prefix
+        void *contModel
+
+    ctypedef struct xmlEntity:
+        void* _private
+        xmlElementType type
+        const_xmlChar* name
+        xmlNode* children
+        xmlNode* last
+        xmlDtd* parent
+        xmlNode* next
+        xmlNode* prev
+        xmlDoc* doc
+        xmlChar* orig
+        xmlChar* content
+        int length
+        xmlEntityType etype
+        const_xmlChar* ExternalID
+        const_xmlChar* SystemID
+        xmlEntity* nexte
+        const_xmlChar* URI
+        int owner
+        int checked
+
     ctypedef struct xmlDtd:
-        char* name
-        char* ExternalID
-        char* SystemID
+        const_xmlChar* name
+        const_xmlChar* ExternalID
+        const_xmlChar* SystemID
         void* notations
         void* entities
         void* pentities
@@ -133,9 +261,9 @@ cdef extern from "libxml/tree.h":
         xmlDict* dict
         xmlHashTable* ids
         int standalone
-        char* version
-        char* encoding
-        char* URL
+        const_xmlChar* version
+        const_xmlChar* encoding
+        const_xmlChar* URL
         void* _private
         xmlDtd* intSubset
         xmlDtd* extSubset
@@ -143,7 +271,7 @@ cdef extern from "libxml/tree.h":
     ctypedef struct xmlAttr:
         void* _private
         xmlElementType type
-        char* name
+        const_xmlChar* name
         xmlNode* children
         xmlNode* last
         xmlNode* parent
@@ -151,63 +279,55 @@ cdef extern from "libxml/tree.h":
         xmlAttr* prev
         xmlDoc* doc
         xmlNs* ns
-        
-    ctypedef struct xmlElement:
-        xmlElementType type
-        char* name
-        xmlNode* children
-        xmlNode* last
-        xmlNode* parent
-        xmlNode* next
-        xmlNode* prev
-        xmlDoc* doc
 
     ctypedef struct xmlID:
-        char* value
+        const_xmlChar* value
         xmlAttr* attr
         xmlDoc* doc
         
     ctypedef struct xmlBuffer
 
+    ctypedef struct xmlBuf   # new in libxml2 2.9
+
     ctypedef struct xmlOutputBuffer:
-        xmlBuffer* buffer
-        xmlBuffer* conv
+        xmlBuf* buffer
+        xmlBuf* conv
         int error
 
-    char* XML_XML_NAMESPACE
+    const_xmlChar* XML_XML_NAMESPACE
         
     cdef void xmlFreeDoc(xmlDoc* cur) nogil
     cdef void xmlFreeDtd(xmlDtd* cur) nogil
     cdef void xmlFreeNode(xmlNode* cur) nogil
     cdef void xmlFreeNsList(xmlNs* ns) nogil
     cdef void xmlFreeNs(xmlNs* ns) nogil
-    cdef void xmlFree(char* buf) nogil
+    cdef void xmlFree(void* buf) nogil
     
-    cdef xmlNode* xmlNewNode(xmlNs* ns, char* name) nogil
-    cdef xmlNode* xmlNewDocText(xmlDoc* doc, char* content) nogil
-    cdef xmlNode* xmlNewDocComment(xmlDoc* doc, char* content) nogil
-    cdef xmlNode* xmlNewDocPI(xmlDoc* doc, char* name, char* content) nogil
-    cdef xmlNode* xmlNewReference(xmlDoc* doc, char* name) nogil
-    cdef xmlNode* xmlNewCDataBlock(xmlDoc* doc, char* text, int len) nogil
-    cdef xmlNs* xmlNewNs(xmlNode* node, char* href, char* prefix) nogil
+    cdef xmlNode* xmlNewNode(xmlNs* ns, const_xmlChar* name) nogil
+    cdef xmlNode* xmlNewDocText(xmlDoc* doc, const_xmlChar* content) nogil
+    cdef xmlNode* xmlNewDocComment(xmlDoc* doc, const_xmlChar* content) nogil
+    cdef xmlNode* xmlNewDocPI(xmlDoc* doc, const_xmlChar* name, const_xmlChar* content) nogil
+    cdef xmlNode* xmlNewReference(xmlDoc* doc, const_xmlChar* name) nogil
+    cdef xmlNode* xmlNewCDataBlock(xmlDoc* doc, const_xmlChar* text, int len) nogil
+    cdef xmlNs* xmlNewNs(xmlNode* node, const_xmlChar* href, const_xmlChar* prefix) nogil
     cdef xmlNode* xmlAddChild(xmlNode* parent, xmlNode* cur) nogil
     cdef xmlNode* xmlReplaceNode(xmlNode* old, xmlNode* cur) nogil
     cdef xmlNode* xmlAddPrevSibling(xmlNode* cur, xmlNode* elem) nogil
     cdef xmlNode* xmlAddNextSibling(xmlNode* cur, xmlNode* elem) nogil
     cdef xmlNode* xmlNewDocNode(xmlDoc* doc, xmlNs* ns,
-                                char* name, char* content) nogil
-    cdef xmlDoc* xmlNewDoc(char* version) nogil
-    cdef xmlAttr* xmlNewProp(xmlNode* node, char* name, char* value) nogil
+                                const_xmlChar* name, const_xmlChar* content) nogil
+    cdef xmlDoc* xmlNewDoc(const_xmlChar* version) nogil
+    cdef xmlAttr* xmlNewProp(xmlNode* node, const_xmlChar* name, const_xmlChar* value) nogil
     cdef xmlAttr* xmlNewNsProp(xmlNode* node, xmlNs* ns,
-                               char* name, char* value) nogil
-    cdef char* xmlGetNoNsProp(xmlNode* node, char* name) nogil
-    cdef char* xmlGetNsProp(xmlNode* node, char* name, char* nameSpace) nogil
+                               const_xmlChar* name, const_xmlChar* value) nogil
+    cdef xmlChar* xmlGetNoNsProp(xmlNode* node, const_xmlChar* name) nogil
+    cdef xmlChar* xmlGetNsProp(xmlNode* node, const_xmlChar* name, const_xmlChar* nameSpace) nogil
     cdef void xmlSetNs(xmlNode* node, xmlNs* ns) nogil
-    cdef xmlAttr* xmlSetProp(xmlNode* node, char* name, char* value) nogil
+    cdef xmlAttr* xmlSetProp(xmlNode* node, const_xmlChar* name, const_xmlChar* value) nogil
     cdef xmlAttr* xmlSetNsProp(xmlNode* node, xmlNs* ns,
-                               char* name, char* value) nogil
+                               const_xmlChar* name, const_xmlChar* value) nogil
     cdef int xmlRemoveProp(xmlAttr* cur) nogil
-    cdef char* xmlGetNodePath(xmlNode* node) nogil
+    cdef xmlChar* xmlGetNodePath(xmlNode* node) nogil
     cdef void xmlDocDumpMemory(xmlDoc* cur, char** mem, int* size) nogil
     cdef void xmlDocDumpMemoryEnc(xmlDoc* cur, char** mem, int* size,
                                   char* encoding) nogil
@@ -218,20 +338,20 @@ cdef extern from "libxml/tree.h":
     cdef xmlNode* xmlDocSetRootElement(xmlDoc* doc, xmlNode* root) nogil
     cdef xmlNode* xmlDocGetRootElement(xmlDoc* doc) nogil
     cdef void xmlSetTreeDoc(xmlNode* tree, xmlDoc* doc) nogil
-    cdef xmlAttr* xmlHasProp(xmlNode* node, char* name) nogil
-    cdef xmlAttr* xmlHasNsProp(xmlNode* node, char* name, char* nameSpace) nogil
-    cdef char* xmlNodeGetContent(xmlNode* cur) nogil
+    cdef xmlAttr* xmlHasProp(xmlNode* node, const_xmlChar* name) nogil
+    cdef xmlAttr* xmlHasNsProp(xmlNode* node, const_xmlChar* name, const_xmlChar* nameSpace) nogil
+    cdef xmlChar* xmlNodeGetContent(xmlNode* cur) nogil
     cdef int xmlNodeBufGetContent(xmlBuffer* buffer, xmlNode* cur) nogil
-    cdef xmlNs* xmlSearchNs(xmlDoc* doc, xmlNode* node, char* prefix) nogil
-    cdef xmlNs* xmlSearchNsByHref(xmlDoc* doc, xmlNode* node, char* href) nogil
+    cdef xmlNs* xmlSearchNs(xmlDoc* doc, xmlNode* node, const_xmlChar* prefix) nogil
+    cdef xmlNs* xmlSearchNsByHref(xmlDoc* doc, xmlNode* node, const_xmlChar* href) nogil
     cdef int xmlIsBlankNode(xmlNode* node) nogil
     cdef long xmlGetLineNo(xmlNode* node) nogil
     cdef void xmlElemDump(stdio.FILE* f, xmlDoc* doc, xmlNode* cur) nogil
     cdef void xmlNodeDumpOutput(xmlOutputBuffer* buf,
                                 xmlDoc* doc, xmlNode* cur, int level,
-                                int format, char* encoding) nogil
-    cdef void xmlNodeSetName(xmlNode* cur, char* name) nogil
-    cdef void xmlNodeSetContent(xmlNode* cur, char* content) nogil
+                                int format, const_char* encoding) nogil
+    cdef void xmlNodeSetName(xmlNode* cur, const_xmlChar* name) nogil
+    cdef void xmlNodeSetContent(xmlNode* cur, const_xmlChar* content) nogil
     cdef xmlDtd* xmlCopyDtd(xmlDtd* dtd) nogil
     cdef xmlDoc* xmlCopyDoc(xmlDoc* doc, int recursive) nogil
     cdef xmlNode* xmlCopyNode(xmlNode* node, int extended) nogil
@@ -241,31 +361,36 @@ cdef extern from "libxml/tree.h":
     cdef xmlBuffer* xmlBufferCreate() nogil
     cdef void xmlBufferWriteChar(xmlBuffer* buf, char* string) nogil
     cdef void xmlBufferFree(xmlBuffer* buf) nogil
-    cdef char* xmlBufferContent(xmlBuffer* buf) nogil
+    cdef const_xmlChar* xmlBufferContent(xmlBuffer* buf) nogil
     cdef int xmlBufferLength(xmlBuffer* buf) nogil
+    cdef const_xmlChar* xmlBufContent(xmlBuf* buf) nogil # new in libxml2 2.9
+    cdef size_t xmlBufLength(xmlBuf* buf) nogil # new in libxml2 2.9
     cdef int xmlKeepBlanksDefault(int val) nogil
-    cdef char* xmlNodeGetBase(xmlDoc* doc, xmlNode* node) nogil
-    cdef void xmlNodeSetBase(xmlNode* node, char* uri) nogil
-    cdef int xmlValidateNCName(char* value, int space) nogil
+    cdef xmlChar* xmlNodeGetBase(xmlDoc* doc, xmlNode* node) nogil
+    cdef void xmlNodeSetBase(xmlNode* node, const_xmlChar* uri) nogil
+    cdef int xmlValidateNCName(const_xmlChar* value, int space) nogil
 
 cdef extern from "libxml/uri.h":
-    cdef char* xmlBuildURI(char* href, char* base) nogil
+    cdef const_xmlChar* xmlBuildURI(const_xmlChar* href, const_xmlChar* base) nogil
 
 cdef extern from "libxml/HTMLtree.h":
     cdef void htmlNodeDumpFormatOutput(xmlOutputBuffer* buf,
                                        xmlDoc* doc, xmlNode* cur,
                                        char* encoding, int format) nogil
-    cdef xmlDoc* htmlNewDoc(char* uri, char* externalID) nogil
+    cdef xmlDoc* htmlNewDoc(const_xmlChar* uri, const_xmlChar* externalID) nogil
 
 cdef extern from "libxml/valid.h":
-    cdef xmlAttr* xmlGetID(xmlDoc* doc, char* ID) nogil
+    cdef xmlAttr* xmlGetID(xmlDoc* doc, const_xmlChar* ID) nogil
     cdef void xmlDumpNotationTable(xmlBuffer* buffer,
                                    xmlNotationTable* table) nogil
 
 cdef extern from "libxml/xmlIO.h":
-    cdef int xmlOutputBufferWriteString(xmlOutputBuffer* out, char* str) nogil
     cdef int xmlOutputBufferWrite(xmlOutputBuffer* out,
-                                  int len, char* str) nogil
+                                  int len, const_char* str) nogil
+    cdef int xmlOutputBufferWriteString(xmlOutputBuffer* out, const_char* str) nogil
+    cdef int xmlOutputBufferWriteEscape(xmlOutputBuffer* out,
+                                        const_xmlChar* str,
+                                        xmlCharEncodingOutputFunc escapefunc) nogil
     cdef int xmlOutputBufferFlush(xmlOutputBuffer* out) nogil
     cdef int xmlOutputBufferClose(xmlOutputBuffer* out) nogil
 
@@ -317,17 +442,18 @@ cdef extern from "libxml/globals.h":
     cdef int xmlThrDefLineNumbersDefaultValue(int onoff) nogil
     cdef int xmlThrDefIndentTreeOutput(int onoff) nogil
     
-cdef extern from "libxml/xmlstring.h":
-    cdef char* xmlStrdup(char* cur) nogil
-
-cdef extern from "libxml/xmlmemory.h":
-    cdef void* xmlMalloc(size_t size) nogil
-    cdef int xmlMemBlocks() nogil
+cdef extern from "libxml/xmlmemory.h" nogil:
+    cdef void* xmlMalloc(size_t size)
+    cdef int xmlMemBlocks()
+    cdef int xmlMemUsed()
+    cdef void xmlMemDisplay(stdio.FILE* file)
+    cdef void xmlMemDisplayLast(stdio.FILE* file, long num_bytes)
+    cdef void xmlMemShow(stdio.FILE* file, int count)
 
 cdef extern from "etree_defs.h":
     cdef bint _isElement(xmlNode* node) nogil
     cdef bint _isElementOrXInclude(xmlNode* node) nogil
-    cdef char* _getNs(xmlNode* node) nogil
+    cdef const_xmlChar* _getNs(xmlNode* node) nogil
     cdef void BEGIN_FOR_EACH_ELEMENT_FROM(xmlNode* tree_top,
                                           xmlNode* start_node,
                                           bint inclusive) nogil

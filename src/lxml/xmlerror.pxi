@@ -1,7 +1,7 @@
 # DEBUG and error logging
 
-cimport xmlerror
-cimport cvarargs
+from lxml.includes cimport xmlerror
+from lxml cimport cvarargs
 
 # module level API functions
 
@@ -25,17 +25,13 @@ cdef void _nullGenericErrorFunc(void* ctxt, char* msg, ...) nogil:
 
 cdef void _initThreadLogging():
     # disable generic error lines from libxml2
-    xmlerror.xmlThrDefSetGenericErrorFunc(NULL, _nullGenericErrorFunc)
-    xmlerror.xmlSetGenericErrorFunc(NULL, _nullGenericErrorFunc)
+    xmlerror.xmlSetGenericErrorFunc(NULL, <xmlerror.xmlGenericErrorFunc>_nullGenericErrorFunc)
 
     # divert error messages to the global error log
-    xmlerror.xmlThrDefSetStructuredErrorFunc(NULL, _receiveError)
     connectErrorLog(NULL)
 
 cdef void connectErrorLog(void* log):
-    xmlerror.xmlSetStructuredErrorFunc(log, _receiveError)
-    xslt.xsltSetGenericErrorFunc(log, _receiveXSLTError)
-
+    xslt.xsltSetGenericErrorFunc(log, <xmlerror.xmlGenericErrorFunc>_receiveXSLTError)
 
 # Logging classes
 
@@ -60,30 +56,35 @@ cdef class _LogEntry:
     cdef readonly object message
     cdef readonly object filename
 
+    @cython.final
     cdef _setError(self, xmlerror.xmlError* error):
-        cdef int size
+        cdef size_t size
         self.domain   = error.domain
         self.type     = error.code
         self.level    = <int>error.level
         self.line     = error.line
         self.column   = error.int2
-        size = cstring_h.strlen(error.message)
-        if size > 0 and error.message[size-1] == c'\n':
-            size = size - 1 # strip EOL
-        try:
-            self.message = python.PyUnicode_DecodeUTF8(
-                error.message, size, NULL)
-        except:
+        if error.message is NULL:
+            self.message = "unknown error"
+        else:
+            size = cstring_h.strlen(error.message)
+            if size > 0 and error.message[size-1] == c'\n':
+                size -= 1 # strip EOL
             try:
-                self.message = python.PyUnicode_DecodeASCII(
-                    error.message, size, 'backslashreplace')
+                self.message = python.PyUnicode_DecodeUTF8(
+                    error.message, size, NULL)
             except:
-                self.message = u'<undecodable error message>'
+                try:
+                    self.message = python.PyUnicode_DecodeASCII(
+                        error.message, size, 'backslashreplace')
+                except:
+                    self.message = '<undecodable error message>'
         if error.file is NULL:
             self.filename = u'<string>'
         else:
-            self.filename = _decodeFilename(error.file)
+            self.filename = _decodeFilename(<const_xmlChar*>error.file)
 
+    @cython.final
     cdef _setGeneric(self, int domain, int type, int level, int line,
                      message, filename):
         self.domain  = domain
@@ -137,6 +138,7 @@ cdef class _BaseErrorLog:
     cpdef receive(self, _LogEntry entry):
         pass
 
+    @cython.final
     cdef void _receive(self, xmlerror.xmlError* error):
         cdef bint is_error
         cdef _LogEntry entry
@@ -154,6 +156,7 @@ cdef class _BaseErrorLog:
         if is_error:
             self.last_error = entry
 
+    @cython.final
     cdef void _receiveGeneric(self, int domain, int type, int level, int line,
                               message, filename):
         cdef bint is_error
@@ -172,15 +175,16 @@ cdef class _BaseErrorLog:
         if is_error:
             self.last_error = entry
 
+    @cython.final
     cdef _buildParseException(self, exctype, default_message):
         code = xmlerror.XML_ERR_INTERNAL_ERROR
         if self._first_error is None:
             return exctype(default_message, code, 0, 0)
-        if not self._first_error.message:
-            message = default_message
-        else:
-            message = self._first_error.message
+        message = self._first_error.message
+        if message:
             code = self._first_error.type
+        else:
+            message = default_message
         line = self._first_error.line
         column = self._first_error.column
         if line > 0:
@@ -190,6 +194,7 @@ cdef class _BaseErrorLog:
                 message = u"%s, line %d" % (message, line)
         return exctype(message, code, line, column)
 
+    @cython.final
     cdef _buildExceptionMessage(self, default_message):
         if self._first_error is None:
             return default_message
@@ -327,19 +332,54 @@ cdef class _ListErrorLog(_BaseErrorLog):
         """
         return self.filter_from_level(ErrorLevels.WARNING)
 
+@cython.final
+@cython.internal
+cdef class _ErrorLogContext:
+    """
+    Error log context for the 'with' statement.
+    Stores a reference to the current callbacks to allow for
+    recursively stacked log contexts.
+    """
+    cdef xmlerror.xmlStructuredErrorFunc old_error_func
+    cdef void* old_error_context
+
 cdef class _ErrorLog(_ListErrorLog):
+    cdef list _logContexts
+    def __cinit__(self):
+        self._logContexts = []
+
     def __init__(self):
         _ListErrorLog.__init__(self, [], None, None)
 
-    cdef void connect(self):
+    @cython.final
+    cdef int __enter__(self) except -1:
+        return self.connect()
+
+    def __exit__(self, *args):
+        #  TODO: make this a cdef function when Cython supports it
+        self.disconnect()
+
+    @cython.final
+    cdef int connect(self) except -1:
         self._first_error = None
         del self._entries[:]
-        connectErrorLog(<void*>self)
 
-    cdef void disconnect(self):
-        connectErrorLog(NULL)
+        cdef _ErrorLogContext context = _ErrorLogContext.__new__(_ErrorLogContext)
+        context.old_error_func = xmlerror.xmlStructuredError
+        context.old_error_context = xmlerror.xmlStructuredErrorContext
+        self._logContexts.append(context)
+        xmlerror.xmlSetStructuredErrorFunc(
+            <void*>self, <xmlerror.xmlStructuredErrorFunc>_receiveError)
+        return 0
 
-    def clear(self):
+    @cython.final
+    cdef int disconnect(self) except -1:
+        cdef _ErrorLogContext context = self._logContexts.pop()
+        xmlerror.xmlSetStructuredErrorFunc(
+            context.old_error_context, context.old_error_func)
+        return 0
+
+    cpdef clear(self):
         self._first_error = None
         del self._entries[:]
 
@@ -511,13 +551,11 @@ cdef void _forwardError(void* c_log_handler, xmlerror.xmlError* error) with gil:
 
 cdef void _receiveError(void* c_log_handler, xmlerror.xmlError* error) nogil:
     # no Python objects here, may be called without thread context !
-    # when we declare a Python object, Pyrex will INCREF(None) !
     if __DEBUG:
         _forwardError(c_log_handler, error)
 
 cdef void _receiveXSLTError(void* c_log_handler, char* msg, ...) nogil:
     # no Python objects here, may be called without thread context !
-    # when we declare a Python object, Pyrex will INCREF(None) !
     cdef xmlerror.xmlError c_error
     cdef cvarargs.va_list args
     cdef char* c_text

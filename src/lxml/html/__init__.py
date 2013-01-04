@@ -31,7 +31,7 @@
 """The ``lxml.html`` tool set for HTML handling.
 """
 
-import threading
+import sys
 import re
 import functools as ft
 try:
@@ -43,7 +43,6 @@ import copy
 from lxml import etree
 from lxml.compare import assertXMLEqual
 from lxml.html import defs
-from lxml import cssselect
 from lxml.html._setmixin import SetMixin
 try:
     from collections import MutableMapping as DictMixin
@@ -280,16 +279,18 @@ class HtmlMixin(object):
         """
         return _collect_string_content(self)
 
-    def cssselect(self, expr):
+    def cssselect(self, expr, translator='html'):
         """
         Run the CSS expression on this element and its children,
         returning a list of the results.
 
-        Equivalent to lxml.cssselect.CSSSelect(expr)(self) -- note
-        that pre-compiling the expression can provide a substantial
+        Equivalent to lxml.cssselect.CSSSelect(expr, translator='html')(self)
+        -- note that pre-compiling the expression can provide a substantial
         speedup.
         """
-        return cssselect.CSSSelector(expr)(self)
+        # Do the import here to make the dependency optional.
+        from lxml.cssselect import CSSSelector
+        return CSSSelector(expr, translator=translator)(self)
 
     ########################################
     ## Link functions
@@ -330,7 +331,7 @@ class HtmlMixin(object):
         if not base_href:
             return
         self.make_links_absolute(base_href, resolve_base_href=False)
-        
+
     def iterlinks(self):
         """
         Yield (element, attribute, link, pos), where attribute may be None
@@ -456,7 +457,7 @@ class HtmlMixin(object):
                 else:
                     new = cur[:pos] + new_link + cur[pos+len(link):]
                     el.attrib[attrib] = new
-                    
+
 
 class _MethodFunc(object):
     """
@@ -486,7 +487,7 @@ class _MethodFunc(object):
                 doc = copy.deepcopy(doc)
         meth = getattr(doc, self.name)
         result = meth(*args, **kw)
-        # FIXME: this None test is a bit sloppy 
+        # FIXME: this None test is a bit sloppy
         if result is None:
             # Then return what we got in
             return _transform_result(result_type, doc)
@@ -583,6 +584,8 @@ def fragments_fromstring(html, no_leading_text=False, base_url=None,
         parser = html_parser
     # FIXME: check what happens when you give html with a body, head, etc.
     start = html[:20].lstrip().lower()
+    if sys.version_info[0] >= 3 and hasattr(start, 'decode'): # Py3 can't mix bytes into startswith()
+        start = start.decode('ISO8859-1')
     if not start.startswith('<html') and not start.startswith('<!doctype'):
         html = '<html><body>%s</body></html>' % html
     doc = document_fromstring(html, parser=parser, base_url=base_url, **kw)
@@ -659,6 +662,8 @@ def fromstring(html, base_url=None, parser=None, **kw):
     if parser is None:
         parser = html_parser
     start = html[:10].lstrip().lower()
+    if sys.version_info[0] >= 3 and hasattr(start, 'decode'): # Py3 can't mix bytes into startswith()
+        start = start.decode('ISO8859-1')
     if start.startswith('<html') or start.startswith('<!doctype'):
         # Looks like a full HTML document
         return document_fromstring(html, parser=parser, base_url=base_url, **kw)
@@ -1025,7 +1030,7 @@ class InputMixin(object):
             type = ''
         return '<%s %x name=%r%s>' % (
             self.__class__.__name__, id(self), self.name, type)
-    
+
 class TextareaElement(InputMixin, HtmlElement):
     """
     ``<textarea>`` element.  You can get the name with ``.name`` and
@@ -1300,6 +1305,13 @@ class CheckboxGroup(list):
         self.value.clear()
     value = property(_value__get, _value__set, _value__del, doc=_value__get.__doc__)
 
+    def value_options(self):
+        """
+        Returns a list of all the possible values.
+        """
+        return [el.get('value') for el in self]
+    value_options = property(value_options, doc=value_options.__doc__)
+
     def __repr__(self):
         return '%s(%s)' % (
             self.__class__.__name__, list.__repr__(self))
@@ -1359,9 +1371,9 @@ class InputElement(InputMixin, HtmlElement):
     Checkboxes and radios have the attribute ``input.checkable ==
     True`` (for all others it is false) and a boolean attribute
     ``.checked``.
-    
+
     """
-    
+
     ## FIXME: I'm a little uncomfortable with the use of .checked
     def _value__get(self):
         """
@@ -1440,7 +1452,7 @@ class LabelElement(HtmlElement):
     Label elements are linked to other elements with their ``for``
     attribute.  You can access this element with ``label.for_element``.
     """
-    
+
     def _for_element__get(self):
         """
         Get/set the element this label points to.  Return None if it
@@ -1506,7 +1518,7 @@ __bytes_replace_meta_content_type = re.compile(
 def tostring(doc, pretty_print=False, include_meta_content_type=False,
              encoding=None, method="html", with_tail=True, doctype=None):
     """Return an HTML string representation of the document.
- 
+
     Note: if include_meta_content_type is true this will create a
     ``<meta http-equiv="Content-Type" ...>`` tag in the head;
     regardless of the value of include_meta_content_type any existing
@@ -1599,7 +1611,7 @@ def open_in_browser(doc, encoding=None):
     url = 'file://' + fn.replace(os.path.sep, '/')
     print(url)
     webbrowser.open(url)
-    
+
 ################################################################################
 # configure Element class lookup
 ################################################################################

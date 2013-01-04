@@ -1,8 +1,11 @@
-from tree cimport xmlDoc, xmlNode, xmlDict
-from xpath cimport xmlXPathContext, xmlXPathFunction
+from lxml.includes.tree cimport xmlDoc, xmlNode, xmlDict, xmlChar, const_xmlChar
+from lxml.includes.xpath cimport xmlXPathContext, xmlXPathFunction
+
+from libc.string cimport const_char
 
 cdef extern from "libxslt/xslt.h":
     cdef int xsltLibxsltVersion
+    cdef int xsltMaxDepth
 
 cdef extern from "libxslt/xsltconfig.h":
     cdef int LIBXSLT_VERSION
@@ -17,7 +20,7 @@ cdef extern from "libxslt/xsltInternals.h":
         xmlDoc* doc
 
     ctypedef struct xsltStylesheet:
-        char* encoding
+        xmlChar* encoding
         xmlDoc* doc
         int errors
 
@@ -48,18 +51,18 @@ cdef extern from "libxslt/extensions.h":
                                            void* precomp_unused) nogil
 
     cdef int xsltRegisterExtFunction(xsltTransformContext* ctxt,
-                                     char* name,
-                                     char* URI,
+                                     const_xmlChar* name,
+                                     const_xmlChar* URI,
                                      xmlXPathFunction function) nogil
-    cdef int xsltRegisterExtModuleFunction(char* name, char* URI,
+    cdef int xsltRegisterExtModuleFunction(const_xmlChar* name, const_xmlChar* URI,
                                            xmlXPathFunction function) nogil
-    cdef int xsltUnregisterExtModuleFunction(char* name, char* URI)
+    cdef int xsltUnregisterExtModuleFunction(const_xmlChar* name, const_xmlChar* URI)
     cdef xmlXPathFunction xsltExtModuleFunctionLookup(
-        char* name, char* URI) nogil
+        const_xmlChar* name, const_xmlChar* URI) nogil
     cdef int xsltRegisterExtPrefix(xsltStylesheet* style, 
-                                   char* prefix, char* URI) nogil
+                                   const_xmlChar* prefix, const_xmlChar* URI) nogil
     cdef int xsltRegisterExtElement(xsltTransformContext* ctxt,
-                                    char* name, char* URI,
+                                    const_xmlChar* name, const_xmlChar* URI,
                                     xsltTransformFunction function) nogil
 
 cdef extern from "libxslt/documents.h":
@@ -68,7 +71,7 @@ cdef extern from "libxslt/documents.h":
         XSLT_LOAD_STYLESHEET
         XSLT_LOAD_DOCUMENT
 
-    ctypedef xmlDoc* (*xsltDocLoaderFunc)(char* URI, xmlDict* dict,
+    ctypedef xmlDoc* (*xsltDocLoaderFunc)(const_xmlChar* URI, xmlDict* dict,
                                           int options,
                                           void* ctxt,
                                           xsltLoadType type) nogil
@@ -77,9 +80,9 @@ cdef extern from "libxslt/documents.h":
 
 cdef extern from "libxslt/transform.h":
     cdef xmlDoc* xsltApplyStylesheet(xsltStylesheet* style, xmlDoc* doc,
-                                     char** params) nogil
+                                     const_char** params) nogil
     cdef xmlDoc* xsltApplyStylesheetUser(xsltStylesheet* style, xmlDoc* doc,
-                                         char** params, char* output,
+                                         const_char** params, const_char* output,
                                          void* profile,
                                          xsltTransformContext* context) nogil
     cdef void xsltProcessOneNode(xsltTransformContext* ctxt,
@@ -94,7 +97,7 @@ cdef extern from "libxslt/transform.h":
                                    xsltStackElem* params) nogil
 
 cdef extern from "libxslt/xsltutils.h":
-    cdef int xsltSaveResultToString(char** doc_txt_ptr,
+    cdef int xsltSaveResultToString(xmlChar** doc_txt_ptr,
                                     int* doc_txt_len,
                                     xmlDoc* result,
                                     xsltStylesheet* style) nogil
@@ -143,19 +146,16 @@ cdef extern from "libxslt/security.h":
 
 cdef extern from "libxslt/variables.h":
     cdef int xsltQuoteUserParams(xsltTransformContext* ctxt,
-                                 char** params)
+                                 const_char** params)
     cdef int xsltQuoteOneUserParam(xsltTransformContext* ctxt,
-                                   char* name,
-                                   char* value)
-    cdef int xsltEvalOneUserParam(xsltTransformContext* ctxt,
-                                  char* name,
-                                  char* value)
+                                   const_xmlChar* name,
+                                   const_xmlChar* value)
 
 cdef extern from "libxslt/extra.h":
-    cdef char* XSLT_LIBXSLT_NAMESPACE
-    cdef char* XSLT_XALAN_NAMESPACE
-    cdef char* XSLT_SAXON_NAMESPACE
-    cdef char* XSLT_XT_NAMESPACE
+    const_xmlChar* XSLT_LIBXSLT_NAMESPACE
+    const_xmlChar* XSLT_XALAN_NAMESPACE
+    const_xmlChar* XSLT_SAXON_NAMESPACE
+    const_xmlChar* XSLT_XT_NAMESPACE
 
     cdef xmlXPathFunction xsltFunctionNodeSet
     cdef void xsltRegisterAllExtras() nogil
@@ -164,13 +164,13 @@ cdef extern from "libexslt/exslt.h":
     cdef void exsltRegisterAll() nogil
 
     # libexslt 1.1.25+
-    char* EXSLT_DATE_NAMESPACE
-    char* EXSLT_SETS_NAMESPACE
-    char* EXSLT_MATH_NAMESPACE
-    char* EXSLT_STRINGS_NAMESPACE
+    const_xmlChar* EXSLT_DATE_NAMESPACE
+    const_xmlChar* EXSLT_SETS_NAMESPACE
+    const_xmlChar* EXSLT_MATH_NAMESPACE
+    const_xmlChar* EXSLT_STRINGS_NAMESPACE
 
-    cdef int exsltDateXpathCtxtRegister(xmlXPathContext* ctxt, char* prefix)
-    cdef int exsltSetsXpathCtxtRegister(xmlXPathContext* ctxt, char* prefix)
-    cdef int exsltMathXpathCtxtRegister(xmlXPathContext* ctxt, char* prefix)
-    cdef int exsltStrXpathCtxtRegister(xmlXPathContext* ctxt, char* prefix)
+    cdef int exsltDateXpathCtxtRegister(xmlXPathContext* ctxt, const_xmlChar* prefix)
+    cdef int exsltSetsXpathCtxtRegister(xmlXPathContext* ctxt, const_xmlChar* prefix)
+    cdef int exsltMathXpathCtxtRegister(xmlXPathContext* ctxt, const_xmlChar* prefix)
+    cdef int exsltStrXpathCtxtRegister(xmlXPathContext* ctxt, const_xmlChar* prefix)
 

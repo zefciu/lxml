@@ -1,7 +1,7 @@
-from tree cimport xmlDoc, xmlDict
-from tree cimport xmlInputReadCallback, xmlInputCloseCallback
-from xmlparser cimport xmlParserCtxt, xmlSAXHandler
-from xmlerror cimport xmlError
+from lxml.includes.tree cimport xmlDoc, xmlDict
+from lxml.includes.tree cimport xmlInputReadCallback, xmlInputCloseCallback
+from lxml.includes.xmlparser cimport xmlParserCtxt, xmlSAXHandler, xmlSAXHandlerV1
+from lxml.includes.xmlerror cimport xmlError
 
 cdef extern from "libxml/HTMLparser.h":
     ctypedef enum htmlParserOption:
@@ -13,6 +13,8 @@ cdef extern from "libxml/HTMLparser.h":
         # libxml2 2.6.21+ only:
         HTML_PARSE_RECOVER    # Relaxed parsing
         HTML_PARSE_COMPACT    # compact small text nodes
+
+    xmlSAXHandlerV1 htmlDefaultSAXHandler
 
     cdef xmlParserCtxt* htmlCreateMemoryParserCtxt(
         char* buffer, int size) nogil

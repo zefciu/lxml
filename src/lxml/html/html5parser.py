@@ -2,20 +2,25 @@
 An interface to html5lib that mimics the lxml.html interface.
 """
 
-import urllib
-
 from html5lib import HTMLParser as _HTMLParser
 from html5lib.treebuilders.etree_lxml import TreeBuilder
 
 from lxml import etree
-from lxml.html import _contains_block_level_tag, XHTML_NAMESPACE
+from lxml.html import _contains_block_level_tag, XHTML_NAMESPACE, Element
 
 # python3 compatibility
 try:
     _strings = basestring
 except NameError:
     _strings = (bytes, str)
-
+try:
+    from urllib2 import urlopen
+except ImportError:
+    from urllib.request import urlopen
+try:
+    from urlparse import urlparse
+except ImportError:
+    from urllib.parse import urlparse
 
 class HTMLParser(_HTMLParser):
     """An html5lib HTML parser with lxml as tree."""
@@ -101,14 +106,14 @@ def fragment_fromstring(html, create_parent=False,
 
     elements = fragments_fromstring(
         html, guess_charset=guess_charset, parser=parser,
-        no_leading_text=not accept_leading_text, **kw)
+        no_leading_text=not accept_leading_text)
 
     if create_parent:
-        if not isinstance(create_parent, basestring):
+        if not isinstance(create_parent, _strings):
             create_parent = 'div'
         new_root = Element(create_parent)
         if elements:
-            if isinstance(elements[0], basestring):
+            if isinstance(elements[0], _strings):
                 new_root.text = elements[0]
                 del elements[0]
             new_root.extend(elements)
@@ -174,11 +179,16 @@ def parse(filename_url_or_file, guess_charset=True, parser=None):
     """
     if parser is None:
         parser = html_parser
-    if isinstance(filename_url_or_file, basestring):
-        fp = urllib.urlopen(filename_url_or_file)
-    else:
+    if not isinstance(filename_url_or_file, _strings):
         fp = filename_url_or_file
+    elif _looks_like_url(filename_url_or_file):
+        fp = urlopen(filename_url_or_file)
+    else:
+        fp = open(filename_url_or_file, 'rb')
     return parser.parse(fp, useChardet=guess_charset)
 
+def _looks_like_url(str):
+    scheme = urlparse(str)[0]
+    return scheme != ''
 
 html_parser = HTMLParser()

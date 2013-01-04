@@ -2,11 +2,167 @@
 lxml changelog
 ==============
 
-2.4 (Under development)
-=======================
+3.1beta1 (2012-12-21)
+=====================
 
 Features added
 --------------
+
+* New build-time option ``--with-unicode-strings`` for Python 2 that
+  makes the API always return Unicode strings for names and text
+  instead of byte strings for plain ASCII content.
+
+* New incremental XML file writing API ``etree.xmlfile()``.
+
+* E factory in lxml.objectify is callable to simplify the creation of
+  tags with non-identifier names without having to resort to getattr().
+
+Bugs fixed
+----------
+
+* When starting from a non-namespaced element in lxml.objectify, searching
+  for a child without explicitly specifying a namespace incorrectly found
+  namespaced elements with the requested local name, instead of restricting
+  the search to non-namespaced children.
+
+* GH#85: Deprecation warnings were fixed for Python 3.x.
+
+* GH#33: lxml.html.fromstring() failed to accept bytes input in Py3.
+
+* LP#1080792: Static build of libxml2 2.9.0 failed due to missing file.
+
+Other changes
+-------------
+
+* The externally useless class ``_ObjectifyElementMakerCaller`` was
+  removed from the module API of lxml.objectify.
+
+* LP#1075622: lxml.builder is faster for adding text to elements with
+  many children.  Patch by Anders Hammarquist.
+
+
+3.0.2 (2012-12-14)
+==================
+
+Features added
+--------------
+
+Bugs fixed
+----------
+
+* Fix crash during interpreter shutdown by switching to Cython 0.17.3 for building.
+
+Other changes
+-------------
+
+
+3.0.1 (2012-10-14)
+==================
+
+Features added
+--------------
+
+Bugs fixed
+----------
+
+* LP#1065924: Element proxies could disappear during garbage collection
+  in PyPy without proper cleanup.
+
+* GH#71: Failure to work with libxml2 2.6.x.
+
+* LP#1065139: static MacOS-X build failed in Py3.
+
+Other changes
+-------------
+
+
+3.0 (2012-10-08)
+================
+
+Features added
+--------------
+
+Bugs fixed
+----------
+
+* End-of-file handling was incorrect in iterparse() when reading from
+  a low-level C file stream and failed in libxml2 2.9.0 due to its
+  improved consistency checks.
+
+Other changes
+-------------
+
+* The build no longer uses Cython by default unless the generated C files
+  are missing.  To use Cython, pass the option "--with-cython".  To ignore
+  the fatal build error when Cython is required but not available (e.g. to
+  run special setup.py commands that do not actually run a build), pass
+  "--without-cython".
+
+
+3.0beta1 (2012-09-26)
+=====================
+
+Features added
+--------------
+
+* Python level access to (optional) libxml2 memory debugging features
+  to simplify debugging of memory leaks etc.
+
+Bugs fixed
+----------
+
+* Fix a memory leak in XPath by switching to Cython 0.17.1.
+
+* Some tests were adapted to work with PyPy.
+
+Other changes
+-------------
+
+* The code was adapted to work with the upcoming libxml2 2.9.0 release.
+
+
+3.0alpha2 (2012-08-23)
+======================
+
+Features added
+--------------
+
+* The ``.iter()`` method of elements now accepts ``tag`` arguments like
+  ``"{*}name"`` to search for elements with a given local name in any
+  namespace. With this addition, all combinations of wildcards now work
+  as expected:
+  ``"{ns}name"``, ``"{}name"``, ``"{*}name"``, ``"{ns}*"``, ``"{}*"``
+  and ``"{*}*"``.  Note that ``"name"`` is equivalent to ``"{}name"``,
+  but ``"*"`` is ``"{*}*"``.
+  The same change applies to the ``.getiterator()``, ``.itersiblings()``,
+  ``.iterancestors()``, ``.iterdescendants()``, ``.iterchildren()``
+  and ``.itertext()`` methods;the ``strip_attributes()``,
+  ``strip_elements()`` and ``strip_tags()`` functions as well as the
+  ``iterparse()`` class.
+
+* C14N allows specifying the inclusive prefixes to be promoted
+  to top-level during exclusive serialisation.
+
+Bugs fixed
+----------
+
+* Passing long Unicode strings into the ``feed()`` parser interface
+  failed to read the entire string.
+
+Other changes
+-------------
+
+
+3.0alpha1 (2012-07-31)
+======================
+
+Features added
+--------------
+
+* Initial support for building in PyPy (through cpyext).
+
+* DTD objects gained an API that allows read access to their
+  declarations.
 
 * ``xpathgrep.py`` gained support for parsing line-by-line (e.g.
   from grep output) and for surrounding the output with a new root
@@ -15,8 +171,6 @@ Features added
 * ``E-factory`` in ``lxml.builder`` accepts subtypes of known data
   types (such as string subtypes) when building elements around them.
 
-* Add support for the :root pseudo-class in cssselect.
-
 * Tree iteration and ``iterparse()`` with a selective ``tag``
   argument supports passing a set of tags.  Tree nodes will be
   returned by the iterators if they match any of the tags.
@@ -24,7 +178,23 @@ Features added
 Bugs fixed
 ----------
 
-* XSLT stylesheet compilation could ignore compilation errors.
+* The ``.find*()`` methods in ``lxml.objectify`` no longer use XPath
+  internally, which makes them faster in many cases (especially when
+  short circuiting after a single or couple of elements) and fixes
+  some behavioural differences compared to ``lxml.etree``.  Note that
+  this means that they no longer support arbitrary XPath expressions
+  but only the subset that the ``ElementPath`` language supports.
+  The previous implementation was also redundant with the normal
+  XPath support, which can be used as a replacement.
+
+* ``el.find('*')`` could accidentally return a comment or processing
+  instruction that happened to be in the wrong spot.  (Same for the
+  other ``.find*()`` methods.)
+
+* The error logging is less intrusive and avoids a global setup where
+  possible.
+
+* Fixed undefined names in html5lib parser.
 
 * ``xpathgrep.py`` did not work in Python 3.
 
@@ -39,6 +209,27 @@ Bugs fixed
 
 Other changes
 --------------
+
+* The code base was overhauled to properly use 'const' where the API
+  of libxml2 and libxslt requests it.  This also has an impact on the
+  public C-API of lxml itself, as defined in ``etreepublic.pxd``, as
+  well as the provided declarations in the ``lxml/includes/`` directory.
+  Code that uses these declarations may have to be adapted.  On the
+  plus side, this fixes several C compiler warnings, also for user
+  code, thus making it easier to spot real problems again.
+
+* The functionality of "lxml.cssselect" was moved into a separate PyPI
+  package called "cssselect".  To continue using it, you must install
+  that package separately.  The "lxml.cssselect" module is still
+  available and provides the same interface, provided the "cssselect"
+  package can be imported at runtime.
+
+* Element attributes passed in as an ``attrib`` dict or as keyword
+  arguments are now sorted by (namespaced) name before being created
+  to make their order predictable for serialisation and iteration.
+  Note that adding or deleting attributes afterwards does not take
+  that order into account, i.e. setting a new attribute appends it
+  after the existing ones.
 
 * Several classes that are for internal use only were removed
   from the ``lxml.etree`` module dict:
@@ -66,6 +257,60 @@ Other changes
   _AppendOnlyElementProxy, _FilelikeWriter, _ParserSchemaValidationContext,
   _XPathContext, _XSLTResolverContext, _XSLTContext, _XSLTQuotedStringParam,
   _XSLTResultTree, _XSLTProcessingInstruction``
+
+
+2.3.6 (2012-09-28)
+==================
+
+Features added
+--------------
+
+Bugs fixed
+----------
+
+* Passing long Unicode strings into the ``feed()`` parser interface
+  failed to read the entire string.
+
+Other changes
+--------------
+
+
+2.3.5 (2012-07-31)
+==================
+
+Features added
+--------------
+
+Bugs fixed
+----------
+
+* Crash when merging text nodes in ``element.remove()``.
+
+* Crash in sax/target parser when reporting empty doctype.
+
+Other changes
+--------------
+
+
+2.3.4 (2012-03-26)
+==================
+
+Features added
+--------------
+
+Bugs fixed
+----------
+
+* Crash when building an nsmap (Element property) with empty
+  namespace URIs.
+
+* Crash due to race condition when errors (or user messages) occur
+  during threaded XSLT processing.
+
+* XSLT stylesheet compilation could ignore compilation errors.
+
+Other changes
+--------------
 
 
 2.3.3 (2012-01-04)

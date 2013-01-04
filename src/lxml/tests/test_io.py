@@ -68,7 +68,7 @@ class _IOTestCaseBase(HelperTestCase):
         f = open(self.getTestFilePath('testdump2.xml'), 'rb')
         data2 = f.read()
         f.close()
-        self.assertEquals(data1, data2)
+        self.assertEqual(data1, data2)
 
     def test_tree_io_latin1(self):
         Element = self.etree.Element
@@ -93,7 +93,7 @@ class _IOTestCaseBase(HelperTestCase):
         f = open(self.getTestFilePath('testdump2.xml'), 'rb')
         data2 = f.read()
         f.close()
-        self.assertEquals(data1, data2)
+        self.assertEqual(data1, data2)
         
     def test_write_filename(self):
         # (c)ElementTree  supports filename strings as write argument
@@ -158,13 +158,13 @@ class _IOTestCaseBase(HelperTestCase):
             root = tree.parse(filename)
             # and now do it again; previous content should still be there
             root2 = tree.parse(filename)
-            self.assertEquals('a', root.tag)
-            self.assertEquals('a', root2.tag)
+            self.assertEqual('a', root.tag)
+            self.assertEqual('a', root2.tag)
             # now remove all references to root2, and parse again
             del root2
             root3 = tree.parse(filename)
-            self.assertEquals('a', root.tag)
-            self.assertEquals('a', root3.tag)
+            self.assertEqual('a', root.tag)
+            self.assertEqual('a', root3.tag)
             # root2's memory should've been freed here
             # XXX how to check?
         finally:
@@ -196,14 +196,14 @@ class _IOTestCaseBase(HelperTestCase):
         # parse from unamed file object    
         f = SillyFileLike()
         root = self.etree.ElementTree().parse(f)
-        self.assert_(root.tag.endswith('foo'))
+        self.assertTrue(root.tag.endswith('foo'))
 
     def test_module_parse_large_fileobject(self):
         # parse from unamed file object
         f = LargeFileLike()
         tree = self.etree.parse(f)
         root = tree.getroot()
-        self.assert_(root.tag.endswith('root'))
+        self.assertTrue(root.tag.endswith('root'))
 
     def test_module_parse_fileobject_error(self):
         class LocalError(Exception):
@@ -237,14 +237,19 @@ class _IOTestCaseBase(HelperTestCase):
                         raise LocalError
         f = TestFile()
         self.assertRaises(LocalError, self.etree.parse, f)
-        self.assertEquals(f.counter, len(f.data)+1)
+        self.assertEqual(f.counter, len(f.data)+1)
 
     def test_module_parse_fileobject_type_error(self):
         class TestFile:
             def read(*args):
                 return 1
         f = TestFile()
-        self.assertRaises(TypeError, self.etree.parse, f)
+
+        try:
+            expect_exc = (TypeError, self.etree.ParseError)
+        except AttributeError:
+            expect_exc = TypeError
+        self.assertRaises(expect_exc, self.etree.parse, f)
 
     
 class ETreeIOTestCase(_IOTestCaseBase):

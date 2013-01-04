@@ -20,38 +20,69 @@
 #define va_int(ap)     va_arg(ap, int)
 #define va_charptr(ap) va_arg(ap, char *)
 
-/* Threading can crash under Python <= 2.4.1 */
-#if PY_VERSION_HEX < 0x02040200
-#  ifndef WITHOUT_THREADING
-#    define WITHOUT_THREADING
-#  endif
-#endif
-
-/* Python 3 doesn't have PyFile_*(), PyString_*(), ... */
-#if PY_VERSION_HEX >= 0x03000000
-#  define PyFile_AsFile(o)                   (NULL)
-#  define PyString_Check(o)                  PyBytes_Check(o)
-#  define PyString_FromStringAndSize(s, len) PyBytes_FromStringAndSize(s, len)
-#  define PyString_FromFormat                PyBytes_FromFormat
-#  define PyString_GET_SIZE(s)               PyBytes_GET_SIZE(s)
-#  define PyString_AS_STRING(s)              PyBytes_AS_STRING(s)
+#ifdef PYPY_VERSION
+#    define IS_PYPY 1
 #else
-#if PY_VERSION_HEX < 0x02060000
-#  define PyBytes_CheckExact(o)              PyString_CheckExact(o)
-#  define PyBytes_Check(o)                   PyString_Check(o)
-#  define PyBytes_FromStringAndSize(s, len)  PyString_FromStringAndSize(s, len)
-#  define PyBytes_FromFormat                 PyString_FromFormat
-#  define PyBytes_GET_SIZE(s)                PyString_GET_SIZE(s)
-#  define PyBytes_AS_STRING(s)               PyString_AS_STRING(s)
-/* we currently only use three parameters - MSVC can't compile (s, ...) */
-#  define PyUnicode_FromFormat(s, a, b) (NULL)
-#endif
+#    define IS_PYPY 0
 #endif
 
 #if PY_VERSION_HEX >= 0x03000000
 #  define IS_PYTHON3 1
 #else
 #  define IS_PYTHON3 0
+#endif
+
+#if IS_PYTHON3
+#undef LXML_UNICODE_STRINGS
+#define LXML_UNICODE_STRINGS 1
+#else
+#ifndef LXML_UNICODE_STRINGS
+#define LXML_UNICODE_STRINGS 0
+#endif
+#endif
+
+#if !IS_PYPY
+#  define PyWeakref_LockObject(obj)          (NULL)
+#endif
+
+/* Threading can crash under Python <= 2.4.1 and is not currently supported by PyPy */
+#if PY_VERSION_HEX < 0x02040200 || IS_PYPY
+#  ifndef WITHOUT_THREADING
+#    define WITHOUT_THREADING
+#  endif
+#endif
+
+/* Python 3 doesn't have PyFile_*() anymore */
+#if PY_VERSION_HEX >= 0x03000000
+#  define PyFile_AsFile(o)                   (NULL)
+#else
+#if IS_PYPY
+#  undef PyFile_AsFile
+#  define PyFile_AsFile(o)                   (NULL)
+#  undef PyUnicode_FromFormat
+#  define PyUnicode_FromFormat(s, a, b)      (NULL)
+#else
+#if PY_VERSION_HEX < 0x02060000
+/* Cython defines these already, but we may not be compiling in Cython code */
+#ifndef PyBytes_CheckExact
+#  define PyBytes_CheckExact(o)              PyString_CheckExact(o)
+#  define PyBytes_Check(o)                   PyString_Check(o)
+#  define PyBytes_FromStringAndSize(s, len)  PyString_FromStringAndSize(s, len)
+#  define PyBytes_FromFormat                 PyString_FromFormat
+#  define PyBytes_GET_SIZE(s)                PyString_GET_SIZE(s)
+#  define PyBytes_AS_STRING(s)               PyString_AS_STRING(s)
+#endif
+/* we currently only use three parameters - MSVC can't compile (s, ...) */
+#  define PyUnicode_FromFormat(s, a, b)      (NULL)
+#endif
+#endif
+#endif
+
+/* PySlice_GetIndicesEx() has wrong signature in Py<=3.1 */
+#if PY_VERSION_HEX >= 0x03020000
+#  define _lx_PySlice_GetIndicesEx(o, l, b, e, s, sl) PySlice_GetIndicesEx(o, l, b, e, s, sl)
+#else
+#  define _lx_PySlice_GetIndicesEx(o, l, b, e, s, sl) PySlice_GetIndicesEx(((PySliceObject*)o), l, b, e, s, sl)
 #endif
 
 #ifdef WITHOUT_THREADING
@@ -86,6 +117,12 @@
 #  define XML_PARSE_OLD10      1 << 17
 #  define XML_PARSE_NOBASEFIX  1 << 18
 #  define XML_PARSE_HUGE       1 << 19
+#  define xmlMemDisplayLast(f,d)
+#endif
+
+#if LIBXML_VERSION < 20704
+/* FIXME: hack to make new error reporting compile in old libxml2 versions */
+#  define xmlStructuredErrorContext NULL
 #endif
 
 /* added to xmlsave API in libxml2 2.6.23 */
@@ -129,6 +166,13 @@
 #  define xmlSchematronValidateDoc(ctxt, doc) 0
 #  define xmlSchematronFreeValidCtxt(ctxt)
 #  define xmlSchematronSetValidStructuredErrors(ctxt, errorfunc, data)
+#endif
+
+#include "libxml/tree.h"
+#ifndef LIBXML2_NEW_BUFFER
+   typedef xmlBuffer xmlBuf;
+#  define xmlBufContent(buf) xmlBufferContent(buf)
+#  define xmlBufLength(buf) xmlBufferLength(buf)
 #endif
 
 /* libexslt 1.1.25+ support EXSLT functions in XPath */

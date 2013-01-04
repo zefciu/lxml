@@ -35,7 +35,7 @@ libxml2_ and libxslt_.  It is unique in that it combines the speed and
 XML feature completeness of these libraries with the simplicity of a
 native Python API, mostly compatible but superior to the well-known
 ElementTree_ API.  The latest release works with all CPython versions
-from 2.4 to 3.2.  See the introduction_ for more information about
+from 2.4 to 3.3.  See the introduction_ for more information about
 background and goals of the lxml project.  Some common questions are
 answered in the FAQ_.
 
@@ -153,39 +153,37 @@ Download
 --------
 
 The best way to download lxml is to visit `lxml at the Python Package
-Index`_ (PyPI).  It has the source that compiles on various platforms.
-The source distribution is signed with `this key`_.  Binary builds for
-MS Windows usually become available through PyPI a few days after a
-source release.  If you can't wait, consider trying a less recent
-release version first.
+Index <http://pypi.python.org/pypi/lxml/>`_ (PyPI).  It has the source
+that compiles on various platforms.  The source distribution is signed
+with `this key <pubkey.asc>`_.  Binary builds are not available from
+PyPI due to the increased maintenance overhead.
 
-The latest version is `lxml 2.3.3`_, released 2011-01-04
-(`changes for 2.3.3`_).  `Older versions`_ are listed below.
+The latest version is `lxml 3.1beta1`_, released 2012-12-21
+(`changes for 3.1beta1`_).  `Older versions <#old-versions>`_
+are listed below.
 
-Please take a look at the `installation instructions`_!
+Please take a look at the
+`installation instructions <installation.html>`_ !
 
 This complete web site (including the generated API documentation) is
 part of the source distribution, so if you want to download the
 documentation for offline use, take the source archive and copy the
-``doc/html`` directory out of the source tree.
+``doc/html`` directory out of the source tree, or use the
+`PDF documentation`_.
 
-It's also possible to check out the latest development version of lxml
-from github directly, using a command like this (assuming you use hg
-and have hg-git installed)::
+The latest installable developer sources should usually be available from the
+`build server <http://lxml.de/build/>`_.  It's also possible to check out
+the latest development version of lxml from github directly, using a command
+like this (assuming you use hg and have hg-git installed)::
 
   hg clone https://github.com/lxml/lxml.git lxml
 
-You can also browse the `source repository`_ and its history through
-the web.  Please read `how to build lxml from source`_ first.  The
-`latest CHANGES`_ of the developer version are also accessible.  You
-can check there if a bug you found has been fixed or a feature you
-want has been implemented in the latest trunk version.
+You can browse the `source repository`_ and its history through
+the web.  Please read `how to build lxml from source <build.html>`_
+first.  The `latest CHANGES`_ of the developer version are also
+accessible.  You can check there if a bug you found has been fixed
+or a feature you want has been implemented in the latest trunk version.
 
-.. _`lxml at the Python Package Index`: http://pypi.python.org/pypi/lxml/
-.. _`this key`: pubkey.asc
-.. _`Older versions`: #old-versions
-.. _`installation instructions`: installation.html
-.. _`how to build lxml from source`: build.html
 .. _`source repository`: https://github.com/lxml/lxml/
 .. _`latest CHANGES`: https://github.com/lxml/lxml/blob/master/CHANGES.txt
 
@@ -228,12 +226,34 @@ obstacle to using lxml in your codebase.
 Old Versions
 ------------
 
-See the web sites of lxml `1.3 <http://lxml.de/1.3/>`_, `2.0
-<http://lxml.de/2.0/>`_, `2.1 <http://lxml.de/2.1/>`_, `2.2
-<http://lxml.de/2.2/>`_ and the `latest in-development version
-<http://lxml.de/dev/>`_
+See the web sites of lxml
+`1.3 <http://lxml.de/1.3/>`_,
+`2.0 <http://lxml.de/2.0/>`_,
+`2.1 <http://lxml.de/2.1/>`_,
+`2.2 <http://lxml.de/2.2/>`_
+`2.3 <http://lxml.de/2.3/>`_
+`3.0 <http://lxml.de/3.0/>`_
+and the `latest in-development version <http://lxml.de/dev/>`_.
 
-.. _`PDF documentation`: lxmldoc-2.3.3.pdf
+.. _`PDF documentation`: lxmldoc-3.1beta1.pdf
+
+* `lxml 3.0.2`_, released 2012-12-14 (`changes for 3.0.2`_)
+
+* `lxml 3.0.1`_, released 2012-10-14 (`changes for 3.0.1`_)
+
+* `lxml 3.0`_, released 2012-10-08 (`changes for 3.0`_)
+
+* `lxml 3.0beta1`_, released 2012-09-26 (`changes for 3.0beta1`_)
+
+* `lxml 3.0alpha2`_, released 2012-08-23 (`changes for 3.0alpha2`_)
+
+* `lxml 3.0alpha1`_, released 2012-07-31 (`changes for 3.0alpha1`_)
+
+* `lxml 2.3.5`_, released 2012-07-31 (`changes for 2.3.5`_)
+
+* `lxml 2.3.4`_, released 2012-03-26 (`changes for 2.3.4`_)
+
+* `lxml 2.3.3`_, released 2012-01-04 (`changes for 2.3.3`_)
 
 * `lxml 2.3.2`_, released 2011-11-11 (`changes for 2.3.2`_)
 
@@ -241,62 +261,34 @@ See the web sites of lxml `1.3 <http://lxml.de/1.3/>`_, `2.0
 
 * `lxml 2.3`_, released 2011-02-06 (`changes for 2.3`_)
 
-* `lxml 2.3beta1`_, released 2010-09-06 (`changes for 2.3beta1`_)
+* `older releases <http://lxml.de/2.3/#old-versions>`_
 
-* `lxml 2.3alpha2`_, released 2010-07-24 (`changes for 2.3alpha2`_)
-
-* `lxml 2.3alpha1`_, released 2010-06-19 (`changes for 2.3alpha1`_)
-
-* `lxml 2.2.8`_, released 2010-09-02 (`changes for 2.2.8`_)
-
-* `lxml 2.2.7`_, released 2010-07-24 (`changes for 2.2.7`_)
-
-* `lxml 2.2.6`_, released 2010-03-02 (`changes for 2.2.6`_)
-
-* `lxml 2.2.5`_, released 2010-02-28 (`changes for 2.2.5`_)
-
-* `lxml 2.2.4`_, released 2009-11-11 (`changes for 2.2.4`_)
-
-* `lxml 2.2.3`_, released 2009-10-30 (`changes for 2.2.3`_)
-
-* `lxml 2.2.2`_, released 2009-06-21 (`changes for 2.2.2`_)
-
-* `lxml 2.2.1`_, released 2009-06-02 (`changes for 2.2.1`_)
-
-* `lxml 2.2`_, released 2009-03-21 (`changes for 2.2`_)
-
-* `older releases <http://lxml.de/2.2/#old-versions>`_
-
+.. _`lxml 3.1beta1`: /files/lxml-3.1beta1.tgz
+.. _`lxml 3.0.2`: /files/lxml-3.0.2.tgz
+.. _`lxml 3.0.1`: /files/lxml-3.0.1.tgz
+.. _`lxml 3.0`: /files/lxml-3.0.tgz
+.. _`lxml 3.0beta1`: /files/lxml-3.0beta1.tgz
+.. _`lxml 3.0alpha2`: /files/lxml-3.0alpha2.tgz
+.. _`lxml 3.0alpha1`: /files/lxml-3.0alpha1.tgz
+.. _`lxml 2.3.6`: /files/lxml-2.3.6.tgz
+.. _`lxml 2.3.5`: /files/lxml-2.3.5.tgz
+.. _`lxml 2.3.4`: /files/lxml-2.3.4.tgz
 .. _`lxml 2.3.3`: /files/lxml-2.3.3.tgz
 .. _`lxml 2.3.2`: /files/lxml-2.3.2.tgz
 .. _`lxml 2.3.1`: /files/lxml-2.3.1.tgz
 .. _`lxml 2.3`: /files/lxml-2.3.tgz
-.. _`lxml 2.3beta1`: /files/lxml-2.3beta1.tgz
-.. _`lxml 2.3alpha2`: /files/lxml-2.3alpha2.tgz
-.. _`lxml 2.3alpha1`: /files/lxml-2.3alpha1.tgz
-.. _`lxml 2.2.8`: /files/lxml-2.2.8.tgz
-.. _`lxml 2.2.7`: /files/lxml-2.2.7.tgz
-.. _`lxml 2.2.6`: /files/lxml-2.2.6.tgz
-.. _`lxml 2.2.5`: /files/lxml-2.2.5.tgz
-.. _`lxml 2.2.4`: /files/lxml-2.2.4.tgz
-.. _`lxml 2.2.3`: /files/lxml-2.2.3.tgz
-.. _`lxml 2.2.2`: /files/lxml-2.2.2.tgz
-.. _`lxml 2.2.1`: /files/lxml-2.2.1.tgz
-.. _`lxml 2.2`: /files/lxml-2.2.tgz
 
+.. _`changes for 3.1beta1`: /changes-3.1beta1.html
+.. _`changes for 3.0.2`: /changes-3.0.2.html
+.. _`changes for 3.0.1`: /changes-3.0.1.html
+.. _`changes for 3.0`: /changes-3.0.html
+.. _`changes for 3.0beta1`: /changes-3.0beta1.html
+.. _`changes for 3.0alpha2`: /changes-3.0alpha2.html
+.. _`changes for 3.0alpha1`: /changes-3.0alpha1.html
+.. _`changes for 2.3.6`: /changes-2.3.6.html
+.. _`changes for 2.3.5`: /changes-2.3.5.html
+.. _`changes for 2.3.4`: /changes-2.3.4.html
 .. _`changes for 2.3.3`: /changes-2.3.3.html
 .. _`changes for 2.3.2`: /changes-2.3.2.html
 .. _`changes for 2.3.1`: /changes-2.3.1.html
 .. _`changes for 2.3`: /changes-2.3.html
-.. _`changes for 2.3beta1`: /changes-2.3beta1.html
-.. _`changes for 2.3alpha2`: /changes-2.3alpha2.html
-.. _`changes for 2.3alpha1`: /changes-2.3alpha1.html
-.. _`changes for 2.2.8`: /changes-2.2.8.html
-.. _`changes for 2.2.7`: /changes-2.2.7.html
-.. _`changes for 2.2.6`: /changes-2.2.6.html
-.. _`changes for 2.2.5`: /changes-2.2.5.html
-.. _`changes for 2.2.4`: /changes-2.2.4.html
-.. _`changes for 2.2.3`: /changes-2.2.3.html
-.. _`changes for 2.2.2`: /changes-2.2.2.html
-.. _`changes for 2.2.1`: /changes-2.2.1.html
-.. _`changes for 2.2`: /changes-2.2.html

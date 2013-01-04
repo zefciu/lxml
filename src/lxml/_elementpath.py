@@ -93,7 +93,7 @@ def prepare_child(next, token):
 def prepare_star(next, token):
     def select(result):
         for elem in result:
-            for e in elem:
+            for e in elem.iterchildren('*'):
                 yield e
     return select
 
@@ -238,7 +238,10 @@ def _build_path_iterator(path, namespaces):
     except AttributeError:
         # Python 3
         _next = stream.__next__
-    token = _next()
+    try:
+        token = _next()
+    except StopIteration:
+        raise SyntaxError("empty path expression")
     selector = []
     while 1:
         try:
