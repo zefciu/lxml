@@ -2,6 +2,77 @@
 lxml changelog
 ==============
 
+3.1.2 (2013-04-12)
+==================
+
+Features added
+--------------
+
+Bugs fixed
+----------
+
+* LP#1136509: Passing attributes through the namespace-unaware API of
+  the sax bridge (i.e. the ``handler.startElement()`` method) failed
+  with a ``TypeError``.  Patch by Mike Bayer.
+
+* LP#1123074: Fix serialisation error in XSLT output when converting
+  the result tree to a Unicode string.
+
+* GH#105: Replace illegal usage of ``xmlBufLength()`` in libxml2 2.9.0
+  by properly exported API function ``xmlBufUse()``.
+
+Other changes
+-------------
+
+
+3.1.1 (2013-03-29)
+==================
+
+Features added
+--------------
+
+Bugs fixed
+----------
+
+* LP#1160386: Write access to ``lxml.html.FormElement.fields`` raised
+  an AttributeError in Py3.
+
+* Illegal memory access during cleanup in incremental xmlfile writer.
+
+Other changes
+-------------
+
+* The externally useless class ``lxml.etree._BaseParser`` was removed
+  from the module dict.
+
+
+3.1.0 (2013-02-10)
+==================
+
+Features added
+--------------
+
+* GH#89: lxml.html.clean allows overriding the set of attributes that it
+  considers 'safe'.  Patch by Francis Devereux.
+
+Bugs fixed
+----------
+
+* LP#1104370: ``copy.copy(el.attrib)`` raised an exception.  It now returns
+  a copy of the attributes as a plain Python dict.
+
+* GH#95: When used with namespace prefixes, the  ``el.find*()`` methods
+  always used the first namespace mapping that was provided for each
+  path expression instead of using the one that was actually passed
+  in for the current run.
+
+* LP#1092521, GH#91: Fix undefined C symbol in Python runtimes compiled
+  without threading support.  Patch by Ulrich Seidl.
+
+Other changes
+-------------
+
+
 3.1beta1 (2012-12-21)
 =====================
 
@@ -138,7 +209,7 @@ Features added
   ``.iterancestors()``, ``.iterdescendants()``, ``.iterchildren()``
   and ``.itertext()`` methods;the ``strip_attributes()``,
   ``strip_elements()`` and ``strip_tags()`` functions as well as the
-  ``iterparse()`` class.
+  ``iterparse()`` class.  Patch by Simon Sapin.
 
 * C14N allows specifying the inclusive prefixes to be promoted
   to top-level during exclusive serialisation.

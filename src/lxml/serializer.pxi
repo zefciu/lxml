@@ -13,13 +13,13 @@ cdef int _findOutputMethod(method) except -1:
     if method is None:
         return OUTPUT_METHOD_XML
     method = method.lower()
-    if method == u"xml":
+    if method == "xml":
         return OUTPUT_METHOD_XML
-    if method == u"html":
+    if method == "html":
         return OUTPUT_METHOD_HTML
-    if method == u"text":
+    if method == "text":
         return OUTPUT_METHOD_TEXT
-    raise ValueError, u"unknown output method %r" % method
+    raise ValueError(u"unknown output method %r" % method)
 
 cdef _textToString(xmlNode* c_node, encoding, bint with_tail):
     cdef bint needs_conversion
@@ -134,10 +134,10 @@ cdef _tostring(_Element element, encoding, doctype, method,
     try:
         if encoding is _unicode:
             result = (<unsigned char*>tree.xmlBufContent(
-                c_result_buffer))[:tree.xmlBufLength(c_result_buffer)].decode('UTF-8')
+                c_result_buffer))[:tree.xmlBufUse(c_result_buffer)].decode('UTF-8')
         else:
             result = <bytes>(<unsigned char*>tree.xmlBufContent(
-                c_result_buffer))[:tree.xmlBufLength(c_result_buffer)]
+                c_result_buffer))[:tree.xmlBufUse(c_result_buffer)]
     finally:
         error_result = tree.xmlOutputBufferClose(c_buffer)
     if error_result < 0:
@@ -332,8 +332,8 @@ cdef void _writePrevSiblings(tree.xmlOutputBuffer* c_buffer, xmlNode* c_node,
     # we are at a root node, so add PI and comment siblings
     c_sibling = c_node
     while c_sibling.prev and \
-            (c_sibling.prev.type == tree.XML_PI_NODE or \
-                 c_sibling.prev.type == tree.XML_COMMENT_NODE):
+            (c_sibling.prev.type == tree.XML_PI_NODE or
+             c_sibling.prev.type == tree.XML_COMMENT_NODE):
         c_sibling = c_sibling.prev
     while c_sibling is not c_node and not c_buffer.error:
         tree.xmlNodeDumpOutput(c_buffer, c_node.doc, c_sibling, 0,
@@ -350,8 +350,8 @@ cdef void _writeNextSiblings(tree.xmlOutputBuffer* c_buffer, xmlNode* c_node,
     # we are at a root node, so add PI and comment siblings
     c_sibling = c_node.next
     while not c_buffer.error and c_sibling and \
-            (c_sibling.type == tree.XML_PI_NODE or \
-                 c_sibling.type == tree.XML_COMMENT_NODE):
+            (c_sibling.type == tree.XML_PI_NODE or
+             c_sibling.type == tree.XML_COMMENT_NODE):
         if pretty_print:
             tree.xmlOutputBufferWriteString(c_buffer, "\n")
         tree.xmlNodeDumpOutput(c_buffer, c_node.doc, c_sibling, 0,
@@ -371,7 +371,7 @@ cdef class _FilelikeWriter:
     def __cinit__(self, filelike, exc_context=None, compression=None):
         if compression is not None and compression > 0:
             filelike = gzip.GzipFile(
-                fileobj=filelike, mode=u'wb', compresslevel=compression)
+                fileobj=filelike, mode='wb', compresslevel=compression)
             self._close_filelike = filelike.close
         self._filelike = filelike
         if exc_context is None:
@@ -412,8 +412,8 @@ cdef class _FilelikeWriter:
             self._exc_context._store_raised()
             return -1
 
-cdef int _writeFilelikeWriter(void* ctxt, char* c_buffer, int len):
-    return (<_FilelikeWriter>ctxt).write(c_buffer, len)
+cdef int _writeFilelikeWriter(void* ctxt, char* c_buffer, int length):
+    return (<_FilelikeWriter>ctxt).write(c_buffer, length)
 
 cdef int _closeFilelikeWriter(void* ctxt):
     return (<_FilelikeWriter>ctxt).close()
@@ -445,7 +445,7 @@ cdef _tofilelike(f, _Element element, encoding, doctype, method,
         if compression:
             bytes_out = BytesIO()
             gzip_file = gzip.GzipFile(
-                fileobj=bytes_out, mode=u'wb', compresslevel=compression)
+                fileobj=bytes_out, mode='wb', compresslevel=compression)
             try:
                 gzip_file.write(data)
             finally:
@@ -453,7 +453,7 @@ cdef _tofilelike(f, _Element element, encoding, doctype, method,
             data = bytes_out
         if _isString(f):
             filename8 = _encodeFilename(f)
-            f = open(filename8, u'wb')
+            f = open(filename8, 'wb')
             try:
                 f.write(data)
             finally:
@@ -499,7 +499,7 @@ cdef _create_output_buffer(f, const_char* c_enc, int compression,
             if c_buffer is NULL:
                 return python.PyErr_SetFromErrno(IOError) # raises IOError
             writer = None
-        elif hasattr(f, u'write'):
+        elif hasattr(f, 'write'):
             writer = _FilelikeWriter(f, compression=compression)
             c_buffer = writer._createOutputBuffer(enchandler)
         else:
@@ -540,32 +540,35 @@ cdef _tofilelikeC14N(f, _Element element, bint exclusive, bint with_comments,
     cdef char* c_filename
     cdef xmlDoc* c_base_doc
     cdef xmlDoc* c_doc
-    cdef int bytes = -1
+    cdef int bytes_count, error = 0
 
     c_base_doc = element._c_node.doc
     c_doc = _fakeRootDoc(c_base_doc, element._c_node)
     try:
-        c_inclusive_ns_prefixes = _convert_ns_prefixes(c_doc.dict, inclusive_ns_prefixes) if inclusive_ns_prefixes else NULL
+        c_inclusive_ns_prefixes = (
+            _convert_ns_prefixes(c_doc.dict, inclusive_ns_prefixes)
+            if inclusive_ns_prefixes else NULL)
 
         if _isString(f):
             filename8 = _encodeFilename(f)
             c_filename = _cstr(filename8)
             with nogil:
-                bytes = c14n.xmlC14NDocSave(c_doc, NULL, exclusive, c_inclusive_ns_prefixes,
-                                            with_comments, c_filename, compression)
-        elif hasattr(f, u'write'):
+                error = c14n.xmlC14NDocSave(
+                    c_doc, NULL, exclusive, c_inclusive_ns_prefixes,
+                    with_comments, c_filename, compression)
+        elif hasattr(f, 'write'):
             writer   = _FilelikeWriter(f, compression=compression)
             c_buffer = writer._createOutputBuffer(NULL)
             with writer.error_log:
-                bytes = c14n.xmlC14NDocSaveTo(c_doc, NULL, exclusive, c_inclusive_ns_prefixes,
-                                              with_comments, c_buffer)
-            if bytes >= 0:
-                bytes = tree.xmlOutputBufferClose(c_buffer)
-            else:
-                tree.xmlOutputBufferClose(c_buffer)
+                bytes_count = c14n.xmlC14NDocSaveTo(
+                    c_doc, NULL, exclusive, c_inclusive_ns_prefixes,
+                    with_comments, c_buffer)
+                error = tree.xmlOutputBufferClose(c_buffer)
+            if bytes_count < 0:
+                error = bytes_count
         else:
-            raise TypeError, \
-                u"File or filename expected, got '%s'" % python._fqtypename(f).decode('UTF-8')
+            raise TypeError(u"File or filename expected, got '%s'" %
+                            python._fqtypename(f).decode('UTF-8'))
     finally:
         _destroyFakeDoc(c_base_doc, c_doc)
         if c_inclusive_ns_prefixes is not NULL:
@@ -574,13 +577,13 @@ cdef _tofilelikeC14N(f, _Element element, bint exclusive, bint with_comments,
     if writer is not None:
         writer._exc_context._raise_if_stored()
 
-    if bytes < 0:
+    if error < 0:
         message = u"C14N failed"
         if writer is not None:
             errors = writer.error_log
             if len(errors):
                 message = errors[0].message
-        raise C14NError, message
+        raise C14NError(message)
 
 # incremental serialisation
 
@@ -589,14 +592,14 @@ cdef class xmlfile:
 
     A simple mechanism for incremental XML serialisation.
 
-    Usage example:
+    Usage example::
 
          with xmlfile("somefile.xml", encoding='utf-8') as xf:
              xf.write_declaration(standalone=True)
              xf.write_doctype('<!DOCTYPE root SYSTEM "some.dtd">')
 
              # generate an element (the root element)
-             with xf.Element('root'):
+             with xf.element('root'):
                   # write a complete Element into the open root element
                   xf.write(etree.Element('test'))
 
@@ -624,8 +627,9 @@ cdef class xmlfile:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.writer is not None:
+            old_writer, self.writer = self.writer, None
             raise_on_error = exc_type is None
-            self.writer._close(raise_on_error)
+            old_writer._close(raise_on_error)
 
 cdef enum _IncrementalFileWriterStatus:
     WRITER_STARTING = 0
@@ -653,6 +657,10 @@ cdef class _IncrementalFileWriter:
         self._c_encoding = _cstr(encoding) if encoding is not None else NULL
         self._target = _create_output_buffer(outfile, self._c_encoding, compresslevel, &self._c_out)
 
+    def __dealloc__(self):
+        if self._c_out is not NULL:
+            tree.xmlOutputBufferClose(self._c_out)
+
     def write_declaration(self, version=None, standalone=None, doctype=None):
         """write_declaration(self, version=None, standalone=None, doctype=None)
 
@@ -676,7 +684,7 @@ cdef class _IncrementalFileWriter:
             self._status = WRITER_DTD_WRITTEN
         else:
             self._status = WRITER_DECL_WRITTEN
-        self._handle_error(xmlerror.XML_ERR_OK)
+        self._handle_error(self._c_out.error)
 
     def write_doctype(self, doctype):
         """write_doctype(self, doctype)
@@ -691,7 +699,7 @@ cdef class _IncrementalFileWriter:
         doctype = _utf8(doctype)
         _writeDoctype(self._c_out, _xcstr(doctype))
         self._status = WRITER_DTD_WRITTEN
-        self._handle_error(xmlerror.XML_ERR_OK)
+        self._handle_error(self._c_out.error)
 
     def element(self, tag, attrib=None, nsmap=None, **_extra):
         """element(self, tag, attrib=None, nsmap=None, **_extra)
@@ -738,7 +746,7 @@ cdef class _IncrementalFileWriter:
         self._write_attributes_and_namespaces(
             attributes, flat_namespace_map, new_namespaces)
         tree.xmlOutputBufferWrite(self._c_out, 1, '>')
-        self._handle_error(xmlerror.XML_ERR_OK)
+        self._handle_error(self._c_out.error)
 
         self._element_stack.append((ns, name, prefix, flat_namespace_map))
         self._status = WRITER_IN_ELEMENT
@@ -778,7 +786,7 @@ cdef class _IncrementalFileWriter:
 
         if not self._element_stack:
             self._status = WRITER_FINISHED
-        self._handle_error(xmlerror.XML_ERR_OK)
+        self._handle_error(self._c_out.error)
 
     cdef _find_prefix(self, bytes href, dict flat_namespaces_map, list new_namespaces):
         if href is None:
@@ -837,7 +845,7 @@ cdef class _IncrementalFileWriter:
                         self._status = WRITER_FINISHED
             else:
                 raise TypeError("got invalid input value of type %s, expected string or Element" % type(content))
-            self._handle_error(xmlerror.XML_ERR_OK)
+            self._handle_error(self._c_out.error)
 
     cdef _close(self, bint raise_on_error):
         if raise_on_error:
@@ -852,12 +860,11 @@ cdef class _IncrementalFileWriter:
                 error_result = xmlerror.XML_ERR_OK
         else:
             tree.xmlOutputBufferClose(self._c_out)
+        self._c_out = NULL
         if raise_on_error:
             self._handle_error(error_result)
 
     cdef _handle_error(self, int error_result):
-        if error_result == xmlerror.XML_ERR_OK:
-            error_result = self._c_out.error
         if error_result != xmlerror.XML_ERR_OK:
             if self._writer is not None:
                 self._writer._exc_context._raise_if_stored()

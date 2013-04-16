@@ -1,7 +1,6 @@
 import os
 import re
 import sys
-import glob
 import fnmatch
 
 # for command line options and supported environment variables, please
@@ -14,7 +13,10 @@ try:
 except ImportError:
     pass
 
-from distutils.core import setup
+try:
+    from setuptools import setup
+except ImportError:
+    from distutils.core import setup
 
 import versioninfo
 import setupinfo
@@ -164,6 +166,7 @@ setup(
     maintainer_email="lxml-dev@lxml.de",
     url="http://lxml.de/",
     download_url="http://pypi.python.org/packages/source/l/lxml/lxml-%s.tar.gz" % versioninfo.version(),
+    bugtrack_url="https://bugs.launchpad.net/lxml",
 
     description="Powerful and Pythonic XML processing library combining libxml2/libxslt with the ElementTree API.",
 

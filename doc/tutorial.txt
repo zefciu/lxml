@@ -42,10 +42,10 @@ documentation`_.
 
 
 ..
-  >>> try: from StringIO import StringIO
+  >>> try: from StringIO import StringIO as BytesIO
   ... except ImportError:
   ...    from io import BytesIO
-  ...    def StringIO(s):
+  ...    def BytesIO(s, BytesIO=BytesIO):
   ...        if isinstance(s, str): s = s.encode("UTF-8")
   ...        return BytesIO(s)
 
@@ -55,6 +55,9 @@ documentation`_.
   >>> try: basestring = basestring
   ... except (NameError, KeyError): basestring = str
 
+  >>> try: next = next
+  ... except NameError:
+  ...     def next(it): return it.next()
 
 A common way to import ``lxml.etree`` is as follows:
 
@@ -674,7 +677,7 @@ serialisation is ASCII:
 
 .. sourcecode:: pycon
 
-   >>> br = root.find('.//br')
+   >>> br = next(root.iter('br'))  # get first result of iteration
    >>> br.tail = u'W\xf6rld'
 
    >>> etree.tostring(root, method='text')  # doctest: +ELLIPSIS
@@ -806,15 +809,15 @@ The parse() function
 The ``parse()`` function is used to parse from files and file-like objects.
 
 As an example of such a file-like object, the following code uses the
-``StringIO`` class for reading from a string instead of an external file.
-That class comes from the ``StringIO`` module in Python 2.  In Python 2.6
-and later, including Python 3.x, you would rather use the ``BytesIO`` class
-from the ``io`` module.  However, in real life, you would obviously avoid
+``BytesIO`` class for reading from a string instead of an external file.
+That class comes from the ``io`` module in Python 2.6 and later.  In older
+Python versions, you will have to use the ``StringIO`` class from the
+``StringIO`` module.  However, in real life, you would obviously avoid
 doing this all together and use the string parsing functions above.
 
 .. sourcecode:: pycon
 
-    >>> some_file_like_object = StringIO("<root>data</root>")
+    >>> some_file_like_object = BytesIO("<root>data</root>")
 
     >>> tree = etree.parse(some_file_like_object)
 
@@ -838,7 +841,7 @@ commonly used to parse XML fragments.
 
 The ``parse()`` function supports any of the following sources:
 
-* an open file object
+* an open file object (make sure to open it in binary mode)
 
 * a file-like object that has a ``.read(byte_count)`` method returning
   a byte string on each call
@@ -967,7 +970,7 @@ Here is a simple ``iterparse()`` example:
 
 .. sourcecode:: pycon
 
-    >>> some_file_like = StringIO("<root><a>data</a></root>")
+    >>> some_file_like = BytesIO("<root><a>data</a></root>")
 
     >>> for event, element in etree.iterparse(some_file_like):
     ...     print("%s, %4s, %s" % (event, element.tag, element.text))
@@ -979,7 +982,7 @@ element, but you can control this through the ``events`` keyword argument:
 
 .. sourcecode:: pycon
 
-    >>> some_file_like = StringIO("<root><a>data</a></root>")
+    >>> some_file_like = BytesIO("<root><a>data</a></root>")
 
     >>> for event, element in etree.iterparse(some_file_like,
     ...                                       events=("start", "end")):
@@ -1000,7 +1003,7 @@ need:
 
 .. sourcecode:: pycon
 
-    >>> some_file_like = StringIO(
+    >>> some_file_like = BytesIO(
     ...     "<root><a><b>data</b></a><a><b/></a></root>")
 
     >>> for event, element in etree.iterparse(some_file_like):
@@ -1024,7 +1027,7 @@ for data extraction.
 
 .. sourcecode:: pycon
 
-    >>> xml_file = StringIO('''\
+    >>> xml_file = BytesIO('''\
     ... <root>
     ...   <a><b>ABC</b><c>abc</c></a>
     ...   <a><b>MORE DATA</b><c>more data</c></a>
@@ -1422,3 +1425,19 @@ Find Elements with a certain attribute:
     a
     >>> print(root.findall(".//a[@y]"))
     []
+
+The ``.iter()`` method is a special case that only finds specific tags
+in the tree by their name, not based on a path.  That means that the
+following commands are equivalent in the success case:
+
+.. sourcecode:: pycon
+
+    >>> print(root.find(".//b").tag)
+    b
+    >>> print(next(root.iterfind(".//b")).tag)
+    b
+    >>> print(next(root.iter("b")).tag)
+    b
+
+Note that the ``.find()`` method simply returns None if no match is found,
+whereas the other two examples would raise a ``StopIteration`` exception.

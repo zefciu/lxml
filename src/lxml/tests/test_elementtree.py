@@ -281,7 +281,7 @@ class _ETreeTestCaseBase(HelperTestCase):
         self.assertEqual(None, root.text)
         self.assertEqual('hoi', root.tag)
 
-    def test_attributes(self):
+    def test_attrib(self):
         ElementTree = self.etree.ElementTree
         
         f = BytesIO('<doc one="One" two="Two"/>')
@@ -291,7 +291,7 @@ class _ETreeTestCaseBase(HelperTestCase):
         self.assertEqual('Two', root.attrib['two'])
         self.assertRaises(KeyError, operator.getitem, root.attrib, 'three')
 
-    def test_attributes2(self):
+    def test_attrib_get(self):
         ElementTree = self.etree.ElementTree
         
         f = BytesIO('<doc one="One" two="Two"/>')
@@ -302,7 +302,40 @@ class _ETreeTestCaseBase(HelperTestCase):
         self.assertEqual(None, root.attrib.get('three'))
         self.assertEqual('foo', root.attrib.get('three', 'foo'))
 
-    def test_attributes3(self):
+    def test_attrib_dict(self):
+        ElementTree = self.etree.ElementTree
+
+        f = BytesIO('<doc one="One" two="Two"/>')
+        doc = ElementTree(file=f)
+        root = doc.getroot()
+        attrib = dict(root.attrib)
+        self.assertEqual('One', attrib['one'])
+        self.assertEqual('Two', attrib['two'])
+        self.assertRaises(KeyError, operator.getitem, attrib, 'three')
+
+    def test_attrib_copy(self):
+        ElementTree = self.etree.ElementTree
+
+        f = BytesIO('<doc one="One" two="Two"/>')
+        doc = ElementTree(file=f)
+        root = doc.getroot()
+        attrib = copy.copy(root.attrib)
+        self.assertEqual('One', attrib['one'])
+        self.assertEqual('Two', attrib['two'])
+        self.assertRaises(KeyError, operator.getitem, attrib, 'three')
+
+    def test_attrib_deepcopy(self):
+        ElementTree = self.etree.ElementTree
+
+        f = BytesIO('<doc one="One" two="Two"/>')
+        doc = ElementTree(file=f)
+        root = doc.getroot()
+        attrib = copy.deepcopy(root.attrib)
+        self.assertEqual('One', attrib['one'])
+        self.assertEqual('Two', attrib['two'])
+        self.assertRaises(KeyError, operator.getitem, attrib, 'three')
+
+    def test_attributes_get(self):
         ElementTree = self.etree.ElementTree
         
         f = BytesIO('<doc one="One" two="Two"/>')
@@ -3478,6 +3511,123 @@ class _ETreeTestCaseBase(HelperTestCase):
 
         self.assertEqual("DONE", done)
         self.assertEqual(["start", "end"], events)
+
+    def test_parser_target_error_in_start(self):
+        assertEqual = self.assertEqual
+
+        events = []
+        class Target(object):
+            def start(self, tag, attrib):
+                events.append("start")
+                assertEqual("TAG", tag)
+                raise ValueError("TEST")
+            def end(self, tag):
+                events.append("end")
+                assertEqual("TAG", tag)
+            def close(self):
+                return "DONE"
+
+        parser = self.etree.XMLParser(target=Target())
+
+        try:
+            parser.feed("<TAG/>")
+        except ValueError:
+            self.assertTrue('TEST' in str(sys.exc_info()[1]))
+        else:
+            self.assertTrue(False)
+        if 'lxml' in self.etree.__name__:
+            self.assertEqual(["start"], events)
+        else:
+            # cElementTree calls end() as well
+            self.assertTrue("start" in events)
+
+    def test_parser_target_error_in_end(self):
+        assertEqual = self.assertEqual
+
+        events = []
+        class Target(object):
+            def start(self, tag, attrib):
+                events.append("start")
+                assertEqual("TAG", tag)
+            def end(self, tag):
+                events.append("end")
+                assertEqual("TAG", tag)
+                raise ValueError("TEST")
+            def close(self):
+                return "DONE"
+
+        parser = self.etree.XMLParser(target=Target())
+
+        try:
+            parser.feed("<TAG/>")
+        except ValueError:
+            self.assertTrue('TEST' in str(sys.exc_info()[1]))
+        else:
+            self.assertTrue(False)
+        self.assertEqual(["start", "end"], events)
+
+    def test_parser_target_error_in_close(self):
+        assertEqual = self.assertEqual
+
+        events = []
+        class Target(object):
+            def start(self, tag, attrib):
+                events.append("start")
+                assertEqual("TAG", tag)
+            def end(self, tag):
+                events.append("end")
+                assertEqual("TAG", tag)
+            def close(self):
+                raise ValueError("TEST")
+
+        parser = self.etree.XMLParser(target=Target())
+
+        try:
+            parser.feed("<TAG/>")
+            parser.close()
+        except ValueError:
+            self.assertTrue('TEST' in str(sys.exc_info()[1]))
+        else:
+            self.assertTrue(False)
+        self.assertEqual(["start", "end"], events)
+
+    def test_parser_target_error_in_start_and_close(self):
+        assertEqual = self.assertEqual
+
+        events = []
+        class Target(object):
+            def start(self, tag, attrib):
+                events.append("start")
+                assertEqual("TAG", tag)
+                raise IndexError("TEST-IE")
+            def end(self, tag):
+                events.append("end")
+                assertEqual("TAG", tag)
+            def close(self):
+                raise ValueError("TEST-VE")
+
+        parser = self.etree.XMLParser(target=Target())
+
+        try:
+            parser.feed("<TAG/>")
+            parser.close()
+        except IndexError:
+            if 'lxml' in self.etree.__name__:
+                # we try not to swallow the initial exception in Py2
+                self.assertTrue(sys.version_info[0] < 3)
+            self.assertTrue('TEST-IE' in str(sys.exc_info()[1]))
+        except ValueError:
+            if 'lxml' in self.etree.__name__:
+                self.assertTrue(sys.version_info[0] >= 3)
+            self.assertTrue('TEST-VE' in str(sys.exc_info()[1]))
+        else:
+            self.assertTrue(False)
+
+        if 'lxml' in self.etree.__name__:
+            self.assertEqual(["start"], events)
+        else:
+            # cElementTree calls end() as well
+            self.assertTrue("start" in events)
 
     def test_elementtree_parser_target(self):
         assertEqual = self.assertEqual

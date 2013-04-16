@@ -52,7 +52,8 @@ ElementTree_.
      6.4  Why can't I just delete parents or clear the root node in iterparse()?
      6.5  How do I output null characters in XML text?
      6.6  Is lxml vulnerable to XML bombs?
-     6.7  Can lxml parse from file objects opened in unicode mode?
+     6.7  How do I configure lxml safely as a web-service endpoint?
+     6.8  Can lxml parse from file objects opened in unicode mode?
    7  XPath and Document Traversal
      7.1  What are the ``findall()`` and ``xpath()`` methods on Element(Tree)?
      7.2  Why doesn't ``findall()`` support full XPath expressions?
@@ -417,23 +418,22 @@ Two of the major design issues of this operating system make it
 non-trivial for its users to build lxml: the lack of a pre-installed
 standard compiler and the missing package management.
 
-We previously provided Windows binaries through PyPI, but no
-longer do so due to the high maintenance overhead they introduce and
-the difficulty in supporting different system configurations.
-Christoph Gohlke generously provides `unofficial lxml binary builds
-for Windows <http://www.lfd.uci.edu/~gohlke/pythonlibs/#lxml>`_ that
-are usually very up to date.  Consider using them if you prefer a
+For recent lxml releases, PyPI provides community donated Windows binaries.
+Besides that, Christoph Gohlke generously provides `unofficial lxml binary
+builds for Windows <http://www.lfd.uci.edu/~gohlke/pythonlibs/#lxml>`_
+that are usually very up to date.  Consider using them if you prefer a
 binary build over a signed official source release.
 
 
 Why do I get errors about missing UCS4 symbols when installing lxml?
 --------------------------------------------------------------------
 
-Most likely, you use a Python installation that was configured for internal
-use of UCS2 unicode, meaning 16-bit unicode.  The lxml egg distributions are
-generally compiled on platforms that use UCS4, a 32-bit unicode encoding, as
-this is used on the majority of platforms.  Sadly, both are not compatible, so
-the eggs can only support the one they were compiled with.
+You are using a Python installation that was configured for a different
+internal Unicode representation than the lxml package you are trying to
+install.  CPython versions before 3.3 allowed to switch between two types
+at build time: the 32 bit encoding UCS4 and the 16 bit encoding UCS2.
+Sadly, both are not compatible, so eggs and other binary distributions
+can only support the one they were compiled with.
 
 This means that you have to compile lxml from sources for your system.  Note
 that you do not need Cython for this, the lxml source distribution is directly
@@ -455,7 +455,7 @@ required for performance reasons.
 
 However, to avoid writing plain C-code and caring too much about the
 details of built-in types and reference counting, lxml is written in
-Cython_, a Python-like language that is translated into C-code.
+Cython_, a superset of the Python language that translates to C-code.
 Chances are that if you know Python, you can write `code that Cython
 accepts`_.  Again, the C-ish style used in the lxml code is just for
 performance optimisations.  If you want to contribute, don't bother
@@ -463,7 +463,7 @@ with the details, a Python implementation of your contribution is
 better than none.  And keep in mind that lxml's flexible API often
 favours an implementation of features in pure Python, without
 bothering with C-code at all.  For example, the ``lxml.html`` package
-is entirely written in Python.
+is written entirely in Python.
 
 Please contact the `mailing list`_ if you need any help.
 
@@ -566,7 +566,7 @@ I think I have found a bug in lxml. What should I do?
 -----------------------------------------------------
 
 First, you should look at the `current developer changelog`_ to see if this
-is a known problem that has already been fixed in the SVN trunk since the
+is a known problem that has already been fixed in the master branch since the
 release you are using.
 
 .. _`current developer changelog`: https://github.com/lxml/lxml/blob/master/CHANGES.txt
@@ -598,11 +598,12 @@ mailing lists, which may considerably reduce the time to find a fix or
 work-around.  See the next question for some hints on how to do that.
 
 Otherwise, we would really like to hear about it.  Please report it to
-the `mailing list`_ so that we can fix it.  It is very helpful in this
-case if you can come up with a short code snippet that demonstrates
-your problem.  If others can reproduce and see the problem, it is much
-easier for them to fix it - and maybe even easier for you to describe
-it and get people convinced that it really is a problem to fix.
+the `bug tracker`_ or to the `mailing list`_ so that we can fix it.
+It is very helpful in this case if you can come up with a short code
+snippet that demonstrates your problem.  If others can reproduce and
+see the problem, it is much easier for them to fix it - and maybe even
+easier for you to describe it and get people convinced that it really
+is a problem to fix.
 
 It is important that you always report the version of lxml, libxml2
 and libxslt that you get from the code snippet above.  If we do not
@@ -612,6 +613,7 @@ take longer for you to get a helpful answer.
 Since as a user of lxml you are likely a programmer, you might find
 `this article on bug reports`_ an interesting read.
 
+.. _`bug tracker`: https://bugs.launchpad.net/lxml/
 .. _`mailing list`: http://lxml.de/mailinglist/
 .. _`this article on bug reports`: http://www.chiark.greenend.org.uk/~sgtatham/bugs.html
 
@@ -875,22 +877,42 @@ library`_ recipe page.
 Why can't lxml parse my XML from unicode strings?
 -------------------------------------------------
 
-lxml can read Python unicode strings and even tries to support them if libxml2
-does not.  However, if the unicode string declares an XML encoding internally
+First of all, XML is explicitly defined as a stream of bytes.  It's not
+Unicode text.  Take a look at the `XML specification`_, it's all about byte
+sequences and how to map them to text and structure.  That leads to rule
+number one: do not decode your XML data yourself.  That's a part of the
+work of an XML parser, and it does it very well.  Just pass it your data as
+a plain byte stream, it will always do the right thing, by specification.
+
+This also includes not opening XML files in text mode.  Make sure you always
+use binary mode, or, even better, pass the file path into lxml's ``parse()``
+function to let it do the file opening, reading and closing itself.  This
+is the most simple and most efficient way to do it.
+
+That being said, lxml can read Python unicode strings and even tries to
+support them if libxml2 does not.  This is because there is one valid use
+case for parsing XML from text strings: literal XML fragments in source
+code.
+
+However, if the unicode string declares an XML encoding internally
 (``<?xml encoding="..."?>``), parsing is bound to fail, as this encoding is
-most likely not the real encoding used in Python unicode.  The same is true
-for HTML unicode strings that contain charset meta tags, although the problems
-may be more subtle here.  The libxml2 HTML parser may not be able to parse the
-meta tags in broken HTML and may end up ignoring them, so even if parsing
-succeeds, later handling may still fail with character encoding errors.
+almost certainly not the real encoding used in Python unicode.  The same is
+true for HTML unicode strings that contain charset meta tags, although the
+problems may be more subtle here.  The libxml2 HTML parser may not be able
+to parse the meta tags in broken HTML and may end up ignoring them, so even
+if parsing succeeds, later handling may still fail with character encoding
+errors.  Therefore, parsing HTML from unicode strings is a much saner thing
+to do than parsing XML from unicode strings.
 
 Note that Python uses different encodings for unicode on different platforms,
 so even specifying the real internal unicode encoding is not portable between
 Python interpreters.  Don't do it.
 
-Python unicode strings with XML data or HTML data that carry encoding
-information are broken.  lxml will not parse them.  You must provide parsable
-data in a valid encoding.
+Python unicode strings with XML data that carry encoding information are
+broken.  lxml will not parse them.  You must provide parsable data in a
+valid encoding.
+
+.. _`XML specification`: http://www.w3.org/TR/REC-xml/
 
 
 What is the difference between str(xslt(doc)) and xslt(doc).write() ?
@@ -945,6 +967,79 @@ enabled by default.
 
 Note that libxml2 versions of the 2.6 series do not restrict their
 parser and are therefore vulnerable to DoS attacks.
+
+Note also that these "hard limits" may still be high enough to
+allow for excessive resource usage in a given use case.  They are
+compile time modifiable, so building your own library versions will
+allow you to change the limits to your own needs. Also see the next
+question.
+
+
+How do I use lxml safely as a web-service endpoint?
+---------------------------------------------------
+
+XML based web-service endpoints are generally subject to several
+types of attacks if they allow some kind of untrusted input.
+From the point of view of the underlying XML tool, the most
+obvious attacks try to send a relatively small amount of data
+that induces a comparatively large resource consumption on the
+receiver side.
+
+First of all, make sure network access is not enabled for the XML
+parser that you use for parsing untrusted content and that it is
+not configured to load external DTDs.  Otherwise, attackers can
+try to trick the parser into an attempt to load external resources
+that are overly slow or impossible to retrieve, thus wasting time
+and other valuable resources on your server such as socket
+connections.  Note that you can register your own document loader
+in lxml, which allows for fine-grained control over any read access
+to resources.
+
+Some of the most famous excessive content expansion attacks
+use XML entity references.  Luckily, entity expansion is mostly
+useless for the data commonly sent through web services and
+can simply be disabled, which rules out several types of
+denial of service attacks at once.  Consequently, version
+1.2 of the SOAP standard explicitly disallows entity references
+in the XML stream.
+
+To disable entity expansion, use an XML parser that is configured
+with the option ``resolve_entities=False``.  Then, after (or
+while) parsing the document, use ``root.iter(etree.Entity)`` to
+recursively search for entity references.  If it contains any,
+reject the entire input document with a suitable error response.
+In lxml 3.x, you can also use the new DTD introspection API to
+apply your own restrictions on input documents.
+
+Another attack to consider is compression bombs.  If you allow
+compressed input into your web service, attackers can try to send
+well forged highly repetitive and thus very well compressing input
+that unpacks into a very large XML document in your server's main
+memory, potentially a thousand times larger than the compressed
+input data.
+
+As a counter measure, either disable compressed input for your
+web server, at least for untrusted sources, or use incremental
+parsing with ``iterparse()`` instead of parsing the whole input
+document into memory in one shot.  That allows you to enforce
+suitable limits on the input by applying semantic checks that
+detect and prevent an illegitimate use of your service.  If
+possible, you can also use this to reduce the amount of data
+that you need to keep in memory while parsing the document,
+thus further reducing the possibility of an attacker to trick
+your system into excessive resource usage.
+
+Finally, please be aware that XPath suffers from the same
+vulnerability as SQL when it comes to content injection.  The
+obvious fix is to not build any XPath expressions via string
+formatting or concatenation when the parameters may come from
+untrusted sources, and instead use XPath variables, which
+safely expose their values to the evaluation engine.
+
+The defusedxml_ package comes with an example setup and a wrapper
+API for lxml that applies certain counter measures internally.
+
+.. _defusedxml: https://bitbucket.org/tiran/defusedxml
 
 
 Can lxml parse from file objects opened in unicode/text mode?

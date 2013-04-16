@@ -368,10 +368,10 @@ cdef class _FileReaderContext:
                 c_requested -= remaining
 
                 self._bytes = self._filelike.read(c_requested)
-                if not python.PyBytes_Check(self._bytes):
-                    if python.PyUnicode_Check(self._bytes):
+                if not isinstance(self._bytes, bytes):
+                    if isinstance(self._bytes, unicode):
                         if self._encoding is None:
-                            self._bytes = python.PyUnicode_AsUTF8String(self._bytes)
+                            self._bytes = (<unicode>self._bytes).encode('utf8')
                         else:
                             self._bytes = python.PyUnicode_AsEncodedString(
                                 self._bytes, _cstr(self._encoding), NULL)
@@ -500,7 +500,7 @@ cdef class _ParserContext(_ResolverContext):
     def __dealloc__(self):
         if self._validator is not None:
             self._validator.disconnect()
-        if self._lock is not NULL:
+        if config.ENABLE_THREADING and self._lock is not NULL:
             python.PyThread_free_lock(self._lock)
         if self._c_ctxt is not NULL:
             xmlparser.xmlFreeParserCtxt(self._c_ctxt)
@@ -703,6 +703,7 @@ cdef inline int _fixHtmlDictNodeNames(tree.xmlDict* c_dict,
         c_attr = c_attr.next
     return 0
 
+@cython.internal
 cdef class _BaseParser:
     cdef ElementClassLookup _class_lookup
     cdef _ResolverRegistry _resolvers
@@ -723,9 +724,7 @@ cdef class _BaseParser:
                  filename, encoding):
         cdef tree.xmlCharEncodingHandler* enchandler
         cdef int c_encoding
-        if not isinstance(self, HTMLParser) and \
-                not isinstance(self, XMLParser) and \
-                not isinstance(self, iterparse):
+        if not isinstance(self, (XMLParser, HTMLParser, iterparse)):
             raise TypeError, u"This class cannot be instantiated"
 
         self._parse_options = parse_options
@@ -1093,14 +1092,14 @@ cdef class _FeedParser(_BaseParser):
         cdef int buffer_len
         cdef int error
         cdef bint recover = self._parse_options & xmlparser.XML_PARSE_RECOVER
-        if python.PyBytes_Check(data):
+        if isinstance(data, bytes):
             if self._default_encoding is None:
                 c_encoding = NULL
             else:
                 c_encoding = self._default_encoding
             c_data = _cstr(data)
             py_buffer_len = python.PyBytes_GET_SIZE(data)
-        elif python.PyUnicode_Check(data):
+        elif isinstance(data, unicode):
             if _UNICODE_ENCODING is NULL:
                 raise ParserError, \
                     u"Unicode parsing is not supported on this platform"
@@ -1458,7 +1457,7 @@ cdef xmlDoc* _parseDoc(text, filename, _BaseParser parser) except NULL:
     else:
         filename_utf = _encodeFilenameUTF8(filename)
         c_filename = _cstr(filename_utf)
-    if python.PyUnicode_Check(text):
+    if isinstance(text, unicode):
         c_len = python.PyUnicode_GET_DATA_SIZE(text)
         if c_len > limits.INT_MAX:
             return (<_BaseParser>parser)._parseDocFromFilelike(
@@ -1580,23 +1579,24 @@ cdef _Document _parseDocumentFromURL(url, _BaseParser parser):
 
 cdef _Document _parseMemoryDocument(text, url, _BaseParser parser):
     cdef xmlDoc* c_doc
-    if python.PyUnicode_Check(text):
+    if isinstance(text, unicode):
         if _hasEncodingDeclaration(text):
-            raise ValueError, \
-                u"Unicode strings with encoding declaration are not supported."
+            raise ValueError(
+                u"Unicode strings with encoding declaration are not supported. "
+                u"Please use bytes input or XML fragments without declaration.")
         # pass native unicode only if libxml2 can handle it
         if _UNICODE_ENCODING is NULL:
-            text = python.PyUnicode_AsUTF8String(text)
-    elif not python.PyBytes_Check(text):
+            text = (<unicode>text).encode('utf8')
+    elif not isinstance(text, bytes):
         raise ValueError, u"can only parse strings"
-    if python.PyUnicode_Check(url):
-        url = python.PyUnicode_AsUTF8String(url)
+    if isinstance(url, unicode):
+        url = (<unicode>url).encode('utf8')
     c_doc = _parseDoc(text, url, parser)
     return _documentFactory(c_doc, parser)
 
 cdef _Document _parseFilelikeDocument(source, url, _BaseParser parser):
     cdef xmlDoc* c_doc
-    if python.PyUnicode_Check(url):
-        url = python.PyUnicode_AsUTF8String(url)
+    if isinstance(url, unicode):
+        url = (<unicode>url).encode('utf8')
     c_doc = _parseDocFromFilelike(source, url, parser)
     return _documentFactory(c_doc, parser)
